@@ -44,6 +44,14 @@ Actor-based model demonstration with:
 - **Actor Communication**: Message passing between PingActor and PongActor
 - **Actor Concurrency**: Multiple workers running simultaneously
 
+### supervisor/
+Supervisor pattern implementation demonstrating:
+- **Supervisor Actor**: Monitors and manages child actors
+- **Worker Actors**: Perform work with random failure (20% chance)
+- **Automatic Restart**: Failed workers are restarted after 3 seconds
+- **Health Monitoring**: Periodic health checks every 2 seconds
+- **Fault Tolerance**: System continues operating despite individual failures
+
 ## Project Structure
 
 Each project follows this structure:
