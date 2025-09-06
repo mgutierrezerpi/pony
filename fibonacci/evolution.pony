@@ -265,12 +265,13 @@ actor GAController is FitnessSink
     // If we've been stagnant for too long, be more aggressive
     let is_very_stagnant = _stagnant_gens > 100
     let is_extremely_stagnant = _stagnant_gens > 500
+    let is_ultra_stagnant = _stagnant_gens > 1000  // For breaking through major plateaus
     
     // ALWAYS keep the best - never throw it away completely
     nextp.push(_pop(besti)?)
     
-    // Keep top 5 when not making progress to preserve good solutions
-    if bestf > 0.5 then
+    // Keep top performers, but reduce when ultra-stagnant to allow more exploration
+    if (bestf > 0.5) and (not is_ultra_stagnant) then
       // Sort population by fitness to find top performers
       let sorted_indices = Array[USize](_pop.size())
       for idx in Range[USize](0, _pop.size()) do
@@ -286,15 +287,37 @@ actor GAController is FitnessSink
           end
         end
       end
+    elseif is_ultra_stagnant and (bestf > 0.5) then
+      // When ultra-stagnant, only keep top 2 to allow more exploration
+      for idx in Range[USize](0, _pop.size()) do
+        if (idx != besti) and (nextp.size() < 2) then
+          try
+            if _fit(idx)? > (bestf * 0.98) then  // Stricter threshold
+              nextp.push(_pop(idx)?)
+            end
+          end
+        end
+      end
+    end
+
+    // Inject fresh random genomes when ultra-stagnant to break plateaus
+    if is_ultra_stagnant and (nextp.size() < (_pop.size() / 4)) then
+      // Add up to 25% completely fresh genomes when ultra-stagnant
+      let fresh_count = (_pop.size() / 4) - nextp.size()
+      for _ in Range[USize](0, fresh_count) do
+        nextp.push(GAOps.random_genome(_rng))
+      end
     end
 
     // Fill rest by tournament selection + crossover + mutation
     while nextp.size() < _pop.size() do
-      // Increase randomness based on stagnation but not too extreme
-      let use_random = if is_extremely_stagnant then
-        (_rng.next() % 3) == 0  // 33% random when extremely stagnant (not 50%)
+      // Increase randomness based on stagnation - more aggressive for plateaus
+      let use_random = if is_ultra_stagnant then
+        (_rng.next() % 2) == 0  // 50% random when ultra stagnant - major plateau breaking
+      elseif is_extremely_stagnant then
+        (_rng.next() % 3) == 0  // 33% random when extremely stagnant
       elseif is_very_stagnant then
-        (_rng.next() % 5) == 0  // 20% random when very stagnant (not 25%)
+        (_rng.next() % 5) == 0  // 20% random when very stagnant
       else
         (_rng.next() % 20) == 0 // 5% random normally
       end
@@ -308,11 +331,14 @@ actor GAController is FitnessSink
         
         // More aggressive mutations when stagnant
         let mutation_type = _rng.next() % 10
-        if is_very_stagnant and (mutation_type < 4) then
-          // 40% heavy mutation when very stagnant
+        if is_ultra_stagnant and (mutation_type < 8) then
+          // 80% heavy mutation when ultra stagnant - plateau breaking
           nextp.push(GAOps.heavy_mutate(_rng, c1))
         elseif is_extremely_stagnant and (mutation_type < 7) then
           // 70% heavy mutation when extremely stagnant
+          nextp.push(GAOps.heavy_mutate(_rng, c1))
+        elseif is_very_stagnant and (mutation_type < 4) then
+          // 40% heavy mutation when very stagnant
           nextp.push(GAOps.heavy_mutate(_rng, c1))
         else
           nextp.push(GAOps.mutate(_rng, c1))
@@ -321,6 +347,8 @@ actor GAController is FitnessSink
         if nextp.size() < _pop.size() then
           if use_random then
             nextp.push(GAOps.random_genome(_rng))
+          elseif is_ultra_stagnant and (mutation_type < 8) then
+            nextp.push(GAOps.heavy_mutate(_rng, c2))
           elseif is_very_stagnant and (mutation_type < 4) then
             nextp.push(GAOps.heavy_mutate(_rng, c2))
           else

@@ -45,14 +45,10 @@ primitive VM
 // Ground truth for comparison
 primitive Fib
   fun fib(n: USize): I64 =>
-    if n < 2 then n.i64() end
-    var a: I64 = 0
-    var b: I64 = 1
-    var i: USize = 1
-    while i < n do
-      let tmp: I64 = a + b
-      a = b
-      b = tmp
-      i = i + 1
+    if n == 0 then
+      0
+    elseif n == 1 then
+      1
+    else
+      fib(n - 1) + fib(n - 2)
     end
-    b
