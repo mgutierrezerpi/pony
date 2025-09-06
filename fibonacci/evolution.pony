@@ -235,7 +235,9 @@ actor GAController is FitnessSink
     end
     let avg: F64 = sum / _pop.size().f64()
     _report.tick(_gen, bestf, avg, _pop(besti)?)
-    if (_gen % 25) == 0 then _report.save_best(_gen, bestf, _pop(besti)?) end
+    
+    // Save every generation
+    _report.save_best(_gen, bestf, _pop(besti)?)
 
     // Track stagnation
     if bestf <= _last_best_fitness then

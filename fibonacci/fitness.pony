@@ -43,20 +43,39 @@ actor Evaluator
 
 actor Reporter
   let _env: Env
+  var _last_best: F64 = -1.0
+  var _last_logged_gen: USize = 0
+  
   new create(env: Env) => _env = env
 
   be tick(gen: USize, best: F64, avg: F64, genome: Array[U8] val) =>
-    _env.out.print("gen=" + gen.string() + " best=" + best.string() + " avg=" + avg.string())
-    // Optional: quick check on holdout
-    var hold_err: F64 = 0
-    for n in Suite.hold_ns().values() do
-      let yhat: I64 = VM.run(genome, n)
-      let y: I64 = Fib.fib(n)
-      let d: F64 = (yhat - y).f64()
-      hold_err = hold_err + (d * d)
+    // Log every 10 generations, or when fitness improves significantly, or when perfect
+    let should_log = ((gen % 10) == 0) or (best > (_last_best + 0.01)) or (best >= 0.99999)
+    
+    if should_log then
+      var hold_err: F64 = 0
+      for n in Suite.hold_ns().values() do
+        let yhat: I64 = VM.run(genome, n)
+        let y: I64 = Fib.fib(n)
+        let d: F64 = (yhat - y).f64()
+        hold_err = hold_err + (d * d)
+      end
+      let rmse: F64 = (hold_err / Suite.hold_ns().size().f64()).sqrt()
+      
+      // Show generation range if we skipped some
+      if (gen - _last_logged_gen) > 1 then
+        _env.out.print("Gen " + (_last_logged_gen + 1).string() + "-" + gen.string() + ": best=" + best.string() + " avg=" + avg.string() + " holdout_rmse=" + rmse.string())
+      else
+        _env.out.print("Gen " + gen.string() + ": best=" + best.string() + " avg=" + avg.string() + " holdout_rmse=" + rmse.string())
+      end
+      
+      // Show a sample calculation
+      let sample_n: USize = 12
+      _env.out.print("  Sample: F(" + sample_n.string() + ")=" + Fib.fib(sample_n).string() + " got=" + VM.run(genome, sample_n).string())
+      
+      _last_best = best
+      _last_logged_gen = gen
     end
-    let rmse: F64 = (hold_err / Suite.hold_ns().size().f64()).sqrt()
-    _env.out.print("  holdout_rmse=" + rmse.string() + " | sample: F(12)=" + Fib.fib(12).string() + ", got=" + VM.run(genome, 12).string())
 
   be save_best(gen: USize, fitness: F64, genome: Array[U8] val) =>
     _env.out.print("Saving best genome - Gen: " + gen.string() + " Fitness: " + fitness.string())
