@@ -4,6 +4,7 @@
 use "random"
 use "collections"
 use "files"
+use "time"
 
 actor GAController is FitnessSink
   let _env: Env
@@ -20,7 +21,7 @@ actor GAController is FitnessSink
 
   new create(env: Env) =>
     _env = env
-    _rng = Rand
+    _rng = Rand(Time.nanos(), Time.millis())
     _report = Reporter(env)
     _workers = GAConf.workers()
     _max_gens = GAConf.gens()
@@ -29,7 +30,7 @@ actor GAController is FitnessSink
   
   new resume(env: Env) =>
     _env = env
-    _rng = Rand
+    _rng = Rand(Time.nanos(), Time.millis())
     _report = Reporter(env)
     _workers = GAConf.workers()
     _max_gens = 10000 // Very high limit for resume to allow continued evolution
@@ -38,7 +39,7 @@ actor GAController is FitnessSink
   
   new resume_with_limit(env: Env, additional_gens: USize) =>
     _env = env
-    _rng = Rand
+    _rng = Rand(Time.nanos(), Time.millis())
     _report = Reporter(env)
     _workers = GAConf.workers()
     _max_gens = 0 // Will be set in _init_from_saved_with_limit
