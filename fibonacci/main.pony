@@ -51,7 +51,13 @@ actor Main
         | "clear" =>
           _clear_generations(env)
         else
-          _show_usage(env)
+          // Check if it's a number to compute Fibonacci for
+          try
+            let n = args(1)?.usize()?
+            _compute_fibonacci(env, n)
+          else
+            _show_usage(env)
+          end
         end
       end
     else
@@ -146,6 +152,52 @@ actor Main
       env.out.print("Invalid generation number: " + gen_str)
     end
   
+  fun _compute_fibonacci(env: Env, n: USize) =>
+    // Find the best trained genome
+    let auth = FileAuth(env.root)
+    var max_gen: USize = 0
+    var found = false
+    
+    // Search backwards from a high number to find the latest generation efficiently
+    var gen: USize = 100000
+    while gen > 0 do
+      let gen_padded = _pad_generation(gen)
+      let path = FilePath(auth, "fibonacci/bin/best_genome_gen_" + gen_padded + ".bytes")
+      if path.exists() then
+        max_gen = gen
+        found = true
+        break
+      end
+      gen = gen - 1
+    end
+    
+    if found then
+      let gen_padded = _pad_generation(max_gen)
+      let bytes_path = FilePath(auth, "fibonacci/bin/best_genome_gen_" + gen_padded + ".bytes")
+      
+      let file = File.open(bytes_path)
+      let genome_bytes = file.read(48)
+      file.dispose()
+      
+      if genome_bytes.size() == 48 then
+        // Convert to val array
+        let genome = recover val
+          let arr = Array[U8](48)
+          for b in (consume genome_bytes).values() do
+            arr.push(b)
+          end
+          arr
+        end
+        
+        let result = VM.run(genome, n)
+        env.out.print("F(" + n.string() + ") = " + result.string())
+      else
+        env.out.print("Error: Invalid genome file")
+      end
+    else
+      env.out.print("Error: No trained genome found. Run training first with: fibonacci train")
+    end
+  
   fun _clear_generations(env: Env) =>
     let auth = FileAuth(env.root)
     let dir_path = FilePath(auth, "fibonacci/bin")
@@ -190,3 +242,4 @@ actor Main
     env.out.print("  fibonacci resume <GENS>  - Resume for exactly GENS generations")
     env.out.print("  fibonacci test <N>       - Test saved genome from generation N")
     env.out.print("  fibonacci clear          - Remove all saved generation files")
+    env.out.print("  fibonacci <N>            - Compute F(N) using best trained genome")
