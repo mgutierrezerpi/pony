@@ -48,6 +48,8 @@ actor Main
           else
             env.out.print("Usage: fibonacci test <generation_number>")
           end
+        | "clear" =>
+          _clear_generations(env)
         else
           _show_usage(env)
         end
@@ -144,6 +146,42 @@ actor Main
       env.out.print("Invalid generation number: " + gen_str)
     end
   
+  fun _clear_generations(env: Env) =>
+    let auth = FileAuth(env.root)
+    let dir_path = FilePath(auth, "fibonacci/bin")
+    
+    if not dir_path.exists() then
+      env.out.print("No fibonacci/bin directory found")
+      return
+    end
+    
+    var count: USize = 0
+    try
+      let dir = Directory(dir_path)?
+      
+      for entry in dir.entries()?.values() do
+        let name = entry
+        if name.contains("best_genome_gen_") and (name.contains(".yml") or name.contains(".bytes")) then
+          let file_path = FilePath(auth, "fibonacci/bin/" + name)
+          if file_path.exists() then
+            if file_path.remove() then
+              count = count + 1
+            else
+              env.out.print("Failed to remove: " + name)
+            end
+          end
+        end
+      end
+      
+      if count > 0 then
+        env.out.print("Cleared " + count.string() + " generation files")
+      else
+        env.out.print("No generation files found to clear")
+      end
+    else
+      env.out.print("Failed to access fibonacci/bin directory")
+    end
+  
   fun _show_usage(env: Env) =>
     env.out.print("Usage:")
     env.out.print("  fibonacci                - Auto-resume if possible, otherwise train")  
@@ -151,3 +189,4 @@ actor Main
     env.out.print("  fibonacci resume         - Resume from best saved genome (unlimited)")
     env.out.print("  fibonacci resume <GENS>  - Resume for exactly GENS generations")
     env.out.print("  fibonacci test <N>       - Test saved genome from generation N")
+    env.out.print("  fibonacci clear          - Remove all saved generation files")

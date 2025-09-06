@@ -15,6 +15,8 @@ actor GAController is FitnessSink
   var _pending: USize = 0
   var _gen: USize = 0
   var _max_gens: USize = 0
+  var _stagnant_gens: USize = 0
+  var _last_best_fitness: F64 = 0.0
 
   new create(env: Env) =>
     _env = env
@@ -72,6 +74,8 @@ actor GAController is FitnessSink
     
     if found then
       _gen = max_gen
+      _stagnant_gens = 0  // Reset stagnation counter on resume
+      _last_best_fitness = 0.0  // Will be updated on first evaluation
       _env.out.print("Loading best genome from generation " + max_gen.string())
       
       let gen_padded = _pad_generation(max_gen)
@@ -142,6 +146,8 @@ actor GAController is FitnessSink
     if found then
       _gen = max_gen
       _max_gens = _gen + additional_gens // Set limit to current + additional
+      _stagnant_gens = 0  // Reset stagnation counter on resume
+      _last_best_fitness = 0.0  // Will be updated on first evaluation
       _env.out.print("Loading best genome from generation " + max_gen.string())
       _env.out.print("Will run for " + additional_gens.string() + " more generations (until gen " + _max_gens.string() + ")")
       
@@ -231,6 +237,14 @@ actor GAController is FitnessSink
     _report.tick(_gen, bestf, avg, _pop(besti)?)
     if (_gen % 25) == 0 then _report.save_best(_gen, bestf, _pop(besti)?) end
 
+    // Track stagnation
+    if bestf <= _last_best_fitness then
+      _stagnant_gens = _stagnant_gens + 1
+    else
+      _stagnant_gens = 0
+      _last_best_fitness = bestf
+    end
+
     // Check for perfect fitness first (terminate early if achieved)
     if bestf >= 0.99999 then
       _report.save_best(_gen, bestf, _pop(besti)?)
@@ -245,38 +259,73 @@ actor GAController is FitnessSink
       return
     end
 
-    // Next generation with reduced elitism
+    // Next generation with adaptive diversity based on stagnation
     let nextp = Array[Array[U8] val](_pop.size())
-    // keep only the best elite (not top 2)
+    
+    // If we've been stagnant for too long, be more aggressive
+    let is_very_stagnant = _stagnant_gens > 100
+    let is_extremely_stagnant = _stagnant_gens > 500
+    
+    // ALWAYS keep the best - never throw it away completely
     nextp.push(_pop(besti)?)
+    
+    // Keep top 5 when not making progress to preserve good solutions
+    if bestf > 0.5 then
+      // Sort population by fitness to find top performers
+      let sorted_indices = Array[USize](_pop.size())
+      for idx in Range[USize](0, _pop.size()) do
+        sorted_indices.push(idx)
+      end
+      // Simple selection of top 5 (already have best at index besti)
+      for idx in Range[USize](0, _pop.size()) do
+        if (idx != besti) and (nextp.size() < 5) then
+          try
+            if _fit(idx)? > (bestf * 0.95) then
+              nextp.push(_pop(idx)?)
+            end
+          end
+        end
+      end
+    end
 
     // Fill rest by tournament selection + crossover + mutation
     while nextp.size() < _pop.size() do
-      let a: USize = _tournament()?
-      let b: USize = _tournament()?
-      (let c1, let c2) = GAOps.crossover(_rng, _pop(a)?, _pop(b)?)
-      
-      // Add diversity: occasionally use heavy mutation or random genome
-      let r1 = _rng.next() % 20
-      if r1 == 0 then
-        // 5% chance: completely random genome for diversity
-        nextp.push(GAOps.random_genome(_rng))
-      elseif r1 == 1 then
-        // 5% chance: heavy mutation
-        nextp.push(GAOps.heavy_mutate(_rng, c1))
+      // Increase randomness based on stagnation but not too extreme
+      let use_random = if is_extremely_stagnant then
+        (_rng.next() % 3) == 0  // 33% random when extremely stagnant (not 50%)
+      elseif is_very_stagnant then
+        (_rng.next() % 5) == 0  // 20% random when very stagnant (not 25%)
       else
-        // 90% chance: regular mutation
-        nextp.push(GAOps.mutate(_rng, c1))
+        (_rng.next() % 20) == 0 // 5% random normally
       end
       
-      if nextp.size() < _pop.size() then 
-        let r2 = _rng.next() % 20
-        if r2 == 0 then
-          nextp.push(GAOps.random_genome(_rng))
-        elseif r2 == 1 then
-          nextp.push(GAOps.heavy_mutate(_rng, c2))
+      if use_random then
+        nextp.push(GAOps.random_genome(_rng))
+      else
+        let a: USize = _tournament()?
+        let b: USize = _tournament()?
+        (let c1, let c2) = GAOps.crossover(_rng, _pop(a)?, _pop(b)?)
+        
+        // More aggressive mutations when stagnant
+        let mutation_type = _rng.next() % 10
+        if is_very_stagnant and (mutation_type < 4) then
+          // 40% heavy mutation when very stagnant
+          nextp.push(GAOps.heavy_mutate(_rng, c1))
+        elseif is_extremely_stagnant and (mutation_type < 7) then
+          // 70% heavy mutation when extremely stagnant
+          nextp.push(GAOps.heavy_mutate(_rng, c1))
         else
-          nextp.push(GAOps.mutate(_rng, c2))
+          nextp.push(GAOps.mutate(_rng, c1))
+        end
+        
+        if nextp.size() < _pop.size() then
+          if use_random then
+            nextp.push(GAOps.random_genome(_rng))
+          elseif is_very_stagnant and (mutation_type < 4) then
+            nextp.push(GAOps.heavy_mutate(_rng, c2))
+          else
+            nextp.push(GAOps.mutate(_rng, c2))
+          end
         end
       end
     end
