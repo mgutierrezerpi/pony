@@ -4,19 +4,29 @@
 
 show_usage() {
     cat << 'EOF'
-Usage: ./pony <command> <project_name>
+Usage: ./pony <command> <project_name> [args...]
 
 Commands:
-  compile <project>  - Compile the project to project/bin/
-  run <project>      - Run the compiled project from project/bin/
+  help                    - Show this help message
+  compile <project>       - Compile the project to project/bin/
+  run <project> [args]    - Run the compiled project with optional arguments
 
 Examples:
-  ./pony compile actors
-  ./pony run actors
+  ./pony help
+  ./pony compile fibonacci
+  ./pony run fibonacci
+  ./pony run fibonacci train
+  ./pony run fibonacci test 100
+  ./pony run fibonacci resume
 EOF
 }
 
-if [ $# -lt 2 ]; then
+if [ $# -lt 1 ]; then
+    show_usage
+    exit 1
+fi
+
+if [ $# -lt 2 ] && [ "$1" != "help" ]; then
     show_usage
     exit 1
 fi
@@ -25,6 +35,11 @@ COMMAND=$1
 PROJECT=$2
 
 case "$COMMAND" in
+    "help")
+        show_usage
+        exit 0
+        ;;
+        
     "compile")
         if [ ! -d "$PROJECT" ]; then
             echo "Error: Project directory '$PROJECT' does not exist"
@@ -52,8 +67,16 @@ case "$COMMAND" in
             exit 1
         fi
         
-        echo "Running $PROJECT..."
-        "./$EXECUTABLE"
+        # Get all arguments after the first two (command and project)
+        shift 2
+        ARGS="$@"
+        
+        if [ -n "$ARGS" ]; then
+            echo "Running $PROJECT with arguments: $ARGS"
+        else
+            echo "Running $PROJECT..."
+        fi
+        "./$EXECUTABLE" $ARGS
         ;;
         
     *)
