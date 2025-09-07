@@ -21,6 +21,7 @@ actor ParallelGAController[D: ProblemDomain val, G: GenomeOperations val, C: GAC
   var _completed_evaluations: USize = 0
   var _target_generation: USize = 0
   var _running: Bool = false
+  var _ignore_perfect_fitness: Bool = false
 
   new create(env: Env, domain: D, genome_ops: G, config: C, reporter: ReportSink tag) =>
     _env = env
@@ -48,6 +49,34 @@ actor ParallelGAController[D: ProblemDomain val, G: GenomeOperations val, C: GAC
     _reporter = reporter
     _rng = Rand(Time.nanos(), Time.millis())
     _target_generation = target_gen
+    
+    // Create worker actors
+    for i in Range[USize](0, _config.worker_count()) do
+      _workers.push(FitnessWorker[D, G, C].create(this, domain))
+    end
+    
+    // Try to load existing population
+    (let gen, let genome_opt) = GenomePersistence.find_latest_generation(_env, "sentiment/bin/")
+    match genome_opt
+    | let genome: Array[U8] val =>
+      _generation = gen
+      _initialize_population_from_best(genome)
+    | None =>
+      _initialize_population()
+    end
+    
+    _start_evolution()
+
+  new with_limit_no_perfect(env: Env, domain: D, genome_ops: G, config: C, reporter: ReportSink tag, 
+                           target_gen: USize) =>
+    _env = env
+    _domain = domain
+    _genome_ops = genome_ops
+    _config = config
+    _reporter = reporter
+    _rng = Rand(Time.nanos(), Time.millis())
+    _target_generation = target_gen
+    _ignore_perfect_fitness = true  // Ignore perfect fitness for resume mode
     
     // Create worker actors
     for i in Range[USize](0, _config.worker_count()) do
@@ -163,7 +192,7 @@ actor ParallelGAController[D: ProblemDomain val, G: GenomeOperations val, C: GAC
     end
     
     // Check termination conditions
-    if (best_fitness >= _domain.perfect_fitness()) or 
+    if ((not _ignore_perfect_fitness) and (best_fitness >= _domain.perfect_fitness())) or 
        (_generation >= _target_generation) then
       _finish_evolution(best_fitness, best_genome)
       return

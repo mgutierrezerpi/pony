@@ -106,13 +106,13 @@ primitive DatasetBuilder
         end
         
         // Fisher-Yates shuffle of indices
-        var i = indices.size()
-        while i > 1 do
-          i = i - 1
-          let j = rng.next().usize() % (i + 1)
+        var k = indices.size()
+        while k > 1 do
+          k = k - 1
+          let j = rng.next().usize() % (k + 1)
           try
-            let temp = indices(i)?
-            indices(i)? = indices(j)?
+            let temp = indices(k)?
+            indices(k)? = indices(j)?
             indices(j)? = temp
           end
         end
@@ -154,22 +154,22 @@ primitive DatasetBuilder
       
       // Load Spanish lexicon
       let spanish_words = FileReader.read_nrc_lexicon(env, "sentiment/data/Spanish-NRC-EmoLex.txt")
-      for (word, sentiments) in spanish_words.pairs() do
-        (let is_positive, let is_negative) = sentiments
-        if is_positive and not is_negative then
-          samples.push((word, 0))  // Positive
-        elseif is_negative and not is_positive then
-          samples.push((word, 1))  // Negative
-        elseif not is_positive and not is_negative then
-          samples.push((word, 2))  // Neutral
+      for (spanish_word, spanish_sentiments) in spanish_words.pairs() do
+        (let spanish_is_positive, let spanish_is_negative) = spanish_sentiments
+        if spanish_is_positive and not spanish_is_negative then
+          samples.push((spanish_word, 0))  // Positive
+        elseif spanish_is_negative and not spanish_is_positive then
+          samples.push((spanish_word, 1))  // Negative
+        elseif not spanish_is_positive and not spanish_is_negative then
+          samples.push((spanish_word, 2))  // Neutral
         end
       end
       
       // Add some explicit neutral words for balance
       let neutral_words: Array[String] val = ["the"; "and"; "or"; "but"; "if"; "then"; "when"; "where"; "how"; "what"; "who"; "which"; "this"; "that"; "these"; "those"; "here"; "there"; "today"; "yesterday"; "tomorrow"; "now"; "later"; "before"; "after"; "table"; "chair"; "book"; "car"; "house"; "street"; "city"; "country"; "el"; "la"; "y"; "o"; "pero"; "si"; "entonces"; "cuando"; "donde"; "como"; "que"; "quien"; "cual"; "este"; "ese"; "estos"; "esos"; "aqui"; "alli"; "hoy"; "ayer"; "mañana"; "ahora"; "despues"; "antes"; "mesa"; "silla"]
       
-      for word in neutral_words.values() do
-        samples.push((word, 2))  // Neutral
+      for neutral_word in neutral_words.values() do
+        samples.push((neutral_word, 2))  // Neutral
       end
       
       samples
