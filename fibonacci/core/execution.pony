@@ -69,10 +69,25 @@ primitive VM
 // Ground truth for comparison
 primitive Fib
   fun fib(n: USize): I64 =>
+    """
+    Efficient iterative Fibonacci calculation.
+    Avoids exponential recursion for large values.
+    """
     if n == 0 then
-      0
+      return 0
     elseif n == 1 then
-      1
-    else
-      fib(n - 1) + fib(n - 2)
+      return 1
     end
+    
+    var a: I64 = 0
+    var b: I64 = 1
+    var i: USize = 2
+    
+    while i <= n do
+      let c = a + b
+      a = b
+      b = c
+      i = i + 1
+    end
+    
+    b

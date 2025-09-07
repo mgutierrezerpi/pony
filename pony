@@ -90,15 +90,19 @@ case "$COMMAND" in
         echo "Running tests for $PROJECT..."
         mkdir -p "$PROJECT/bin"
         
-        # Check if we have a test_runner.pony file
-        if [ -f "$PROJECT/test_runner.pony" ]; then
+        # Check if we have a test_vm.pony file
+        if [ -f "$PROJECT/test_vm.pony" ]; then
             echo "Compiling and running test suite..."
             
             # Create a temporary test directory
             mkdir -p "$PROJECT/test_build"
             cp "$PROJECT"/*.pony "$PROJECT/test_build/"
             
-            # Make test_runner.pony the main file by removing main.pony from test build
+            # Copy the core and _framework directories
+            cp -r "$PROJECT/core" "$PROJECT/test_build/"
+            cp -r "$PROJECT/_framework" "$PROJECT/test_build/"
+            
+            # Make test_vm.pony the main file by removing main.pony from test build
             rm "$PROJECT/test_build/main.pony" 2>/dev/null || true
             
             # Compile from the test build directory
@@ -115,7 +119,7 @@ case "$COMMAND" in
                 exit 1
             fi
         else
-            echo "No test_runner.pony found"
+            echo "No test_vm.pony found"
             exit 1
         fi
         ;;
