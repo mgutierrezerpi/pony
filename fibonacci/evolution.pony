@@ -24,7 +24,7 @@ actor GAController is FitnessSink
     _rng = Rand(Time.nanos(), Time.millis())
     _report = Reporter(env)
     _workers = GAConf.workers()
-    _max_gens = GAConf.gens()
+    _max_gens = 0 // No generation limit - runs until perfect fitness
     _init_pop()
     _eval_pop()
   
@@ -33,7 +33,7 @@ actor GAController is FitnessSink
     _rng = Rand(Time.nanos(), Time.millis())
     _report = Reporter(env)
     _workers = GAConf.workers()
-    _max_gens = 10000 // Very high limit for resume to allow continued evolution
+    _max_gens = 0 // No generation limit - runs until perfect fitness
     _init_from_saved()
     _eval_pop()
   
@@ -248,16 +248,10 @@ actor GAController is FitnessSink
       _last_best_fitness = bestf
     end
 
-    // Check for perfect fitness first (terminate early if achieved)
+    // Only terminate when perfect fitness is achieved (no generation limit)
     if bestf >= 0.99999 then
       _report.save_best(_gen, bestf, _pop(besti)?)
       _env.out.print("PERFECT! Achieved fitness " + bestf.string() + " at generation " + _gen.string())
-      _env.out.print("DONE. Best fitness " + bestf.string() + " Example: F(15)=" + Fib.fib(15).string() + " got=" + VM.run(_pop(besti)?, 15).string())
-      return
-    end
-    
-    if _gen >= _max_gens then
-      _report.save_best(_gen, bestf, _pop(besti)?)
       _env.out.print("DONE. Best fitness " + bestf.string() + " Example: F(15)=" + Fib.fib(15).string() + " got=" + VM.run(_pop(besti)?, 15).string())
       return
     end

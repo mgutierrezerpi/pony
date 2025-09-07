@@ -237,8 +237,8 @@ actor Main
   fun _show_usage(env: Env) =>
     env.out.print("Usage:")
     env.out.print("  fibonacci                - Auto-resume if possible, otherwise train")  
-    env.out.print("  fibonacci train          - Start fresh training")
-    env.out.print("  fibonacci resume         - Resume from best saved genome (unlimited)")
+    env.out.print("  fibonacci train          - Start fresh training (runs until perfect fitness)")
+    env.out.print("  fibonacci resume         - Resume from best saved genome (runs until perfect fitness)")
     env.out.print("  fibonacci resume <GENS>  - Resume for exactly GENS generations")
     env.out.print("  fibonacci test <N>       - Test saved genome from generation N")
     env.out.print("  fibonacci clear          - Remove all saved generation files")
