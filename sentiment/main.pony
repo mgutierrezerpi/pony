@@ -125,14 +125,43 @@ actor Main
         let features = domain.extract_sentiment_features(text)
         let predictions = domain.forward_pass(g, features)
         
-        // Find the predicted sentiment class (highest confidence)
+        // Find the predicted sentiment class with smarter logic
         var predicted_class: USize = 0
         var max_confidence: F64 = 0.0
-        for i in Range[USize](0, 3) do
-          try
-            if predictions(i)? > max_confidence then
-              max_confidence = predictions(i)?
-              predicted_class = i
+        
+        // Get all three predictions
+        var positive_conf: F64 = 0.0
+        var negative_conf: F64 = 0.0
+        var neutral_conf: F64 = 0.0
+        
+        try
+          positive_conf = predictions(0)?
+          negative_conf = predictions(1)?
+          neutral_conf = predictions(2)?
+        end
+        
+        // Smart decision logic:
+        // If negative and neutral are close (within 5%) but both much higher than positive (>20% difference),
+        // classify as negative
+        let neg_neutral_diff = (negative_conf - neutral_conf).abs()
+        let pos_avg_diff = ((negative_conf + neutral_conf) / 2.0) - positive_conf
+        
+        if (neg_neutral_diff < 0.05) and (pos_avg_diff > 0.20) then
+          // Negative and neutral are close, but both much higher than positive -> NEGATIVE
+          predicted_class = 1  // Negative
+          max_confidence = negative_conf
+        elseif (neg_neutral_diff < 0.05) and (pos_avg_diff < -0.20) then
+          // Positive is much higher than both negative and neutral -> POSITIVE
+          predicted_class = 0  // Positive
+          max_confidence = positive_conf
+        else
+          // Standard logic: pick the highest
+          for i in Range[USize](0, 3) do
+            try
+              if predictions(i)? > max_confidence then
+                max_confidence = predictions(i)?
+                predicted_class = i
+              end
             end
           end
         end
@@ -169,7 +198,7 @@ actor Main
         let lower_text = text.lower()
         let words_iso = lower_text.split(" ")
         let words = recover val consume words_iso end
-        let is_spanish = domain.detect_spanish(words)
+        let is_spanish = domain.detect_spanish_from_nrc(words)
         env.out.print("")
         env.out.print("Detected language: " + if is_spanish then "Spanish 🇪🇸" else "English 🇺🇸" end)
         

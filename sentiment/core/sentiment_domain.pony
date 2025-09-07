@@ -14,6 +14,8 @@ class SentimentDomain is ProblemDomain
   """
   let _all_training_data: Array[(String, USize)] val
   let _test_cases: Array[(String, USize)] val
+  let _english_lexicon: Map[String, (Bool, Bool)] val
+  let _spanish_lexicon: Map[String, (Bool, Bool)] val
   
   new val create(env: Env) =>
     """
@@ -21,6 +23,8 @@ class SentimentDomain is ProblemDomain
     """
     _all_training_data = DatasetBuilder.load_all_sentiment_samples(env)
     _test_cases = DatasetBuilder.get_test_cases()
+    _english_lexicon = FileReader.read_nrc_lexicon(env, "sentiment/data/English-NRC-EmoLex.txt")
+    _spanish_lexicon = FileReader.read_nrc_lexicon(env, "sentiment/data/Spanish-NRC-EmoLex.txt")
   
   fun genome_size(): USize => 
     // Input layer: 50 sentiment features + 1 bias
@@ -94,11 +98,11 @@ class SentimentDomain is ProblemDomain
       // Find the predicted class (highest confidence)
       var predicted_class: USize = 0
       var max_confidence: F64 = 0.0
-      for i in Range[USize](0, 3) do
+      for k in Range[USize](0, 3) do
         try
-          if predictions(i)? > max_confidence then
-            max_confidence = predictions(i)?
-            predicted_class = i
+          if predictions(k)? > max_confidence then
+            max_confidence = predictions(k)?
+            predicted_class = k
           end
         end
       end
@@ -165,7 +169,7 @@ class SentimentDomain is ProblemDomain
   
   fun extract_sentiment_features(text: String): Array[F64] val =>
     """
-    Extract sentiment-focused features from multilingual text.
+    Extract sentiment-focused features from multilingual text using loaded NRC lexicon.
     Returns 50 features focused on positive/negative/neutral classification.
     """
     recover val
@@ -174,8 +178,8 @@ class SentimentDomain is ProblemDomain
       let words_iso = lower_text.split(" ")
       let words = recover val consume words_iso end
       
-      // Get basic sentiment counts
-      let sentiment_counts = _count_sentiment_words(words)
+      // Get sentiment counts from loaded NRC lexicon data
+      let sentiment_counts = _count_nrc_sentiment_words(words)
       
       // Features 0-2: Raw sentiment word counts (normalized)
       for idx in Range[USize](0, 3) do
@@ -206,7 +210,7 @@ class SentimentDomain is ProblemDomain
       end
       
       // Features 9-11: Language-adjusted scores
-      let is_spanish = detect_spanish(words)
+      let is_spanish = detect_spanish_from_nrc(words)
       for lang_idx in Range[USize](0, 3) do
         try
           let base_score = sentiment_counts(lang_idx)? / words.size().f64()
@@ -245,11 +249,11 @@ class SentimentDomain is ProblemDomain
       let words_iso = lower_text.split(" ")
       let words = recover val consume words_iso end
       
-      // Get emotion counts for each category
-      let emotion_counts = _count_emotion_words(words)
+      // Get emotion counts for each category (simplified to sentiment only)
+      let emotion_counts = _count_nrc_sentiment_words(words)
       
-      // Features 0-9: Raw emotion word counts (normalized)
-      for idx in Range[USize](0, 10) do
+      // Features 0-2: Raw sentiment word counts (normalized)
+      for idx in Range[USize](0, 3) do
         try
           features.push(emotion_counts(idx)? / words.size().f64())
         else
@@ -257,8 +261,8 @@ class SentimentDomain is ProblemDomain
         end
       end
       
-      // Features 10-19: Binary indicators (>0 words found)
-      for binary_idx in Range[USize](0, 10) do
+      // Features 3-5: Binary indicators (>0 words found)
+      for binary_idx in Range[USize](0, 3) do
         try
           features.push(if emotion_counts(binary_idx)? > 0 then 1.0 else 0.0 end)
         else
@@ -266,8 +270,8 @@ class SentimentDomain is ProblemDomain
         end
       end
       
-      // Features 20-29: Squared counts (emphasizes strong emotions)
-      for squared_idx in Range[USize](0, 10) do
+      // Features 6-8: Squared counts (emphasizes strong sentiment)
+      for squared_idx in Range[USize](0, 3) do
         try
           let count = emotion_counts(squared_idx)?
           features.push((count * count) / (words.size().f64() * words.size().f64()))
@@ -276,9 +280,9 @@ class SentimentDomain is ProblemDomain
         end
       end
       
-      // Features 30-39: Language detection features
-      let is_spanish = detect_spanish(words)
-      for lang_idx in Range[USize](0, 10) do
+      // Features 9-11: Language detection features
+      let is_spanish = detect_spanish_from_nrc(words)
+      for lang_idx in Range[USize](0, 3) do
         try
           let base_score = emotion_counts(lang_idx)? / words.size().f64()
           features.push(if is_spanish then (base_score * 1.2) else (base_score * 0.8) end)
@@ -287,7 +291,7 @@ class SentimentDomain is ProblemDomain
         end
       end
       
-      // Features 40-99: Additional contextual features
+      // Features 12-17: Additional contextual features
       // Text statistics
       features.push(words.size().f64() / 20.0)  // Text length
       features.push(if text.contains("!") then 1.0 else 0.0 end)  // Exclamation
@@ -296,8 +300,8 @@ class SentimentDomain is ProblemDomain
       features.push(if text.contains("¿") then 1.0 else 0.0 end)  // Spanish question
       features.push(if is_spanish then 1.0 else 0.0 end)  // Language indicator
       
-      // Emotion combination features (features 46-99)
-      for pad_idx in Range[USize](46, 100) do
+      // Features 18-99: Zero padding for additional features
+      for pad_idx in Range[USize](18, 100) do
         features.push(0.0)  // Zero padding for additional features
       end
       
@@ -383,9 +387,9 @@ class SentimentDomain is ProblemDomain
     end
     count
   
-  fun _count_sentiment_words(words: Array[String] val): Array[F64] val =>
+  fun _count_nrc_sentiment_words(words: Array[String] val): Array[F64] val =>
     """
-    Count sentiment words: [positive, negative, neutral_indicators]
+    Count sentiment words using loaded NRC lexicon: [positive, negative, neutral]
     """
     recover val
       let counts = Array[F64](3)  // [positive, negative, neutral]
@@ -393,37 +397,38 @@ class SentimentDomain is ProblemDomain
         counts.push(0.0)
       end
       
-      // Check each word against sentiment categories
+      // Check each word against loaded NRC lexicon
       for word in words.values() do
         let clean_word = word.clone()
         clean_word.strip(" .,!?¡¿\"")
-        let lower_word = clean_word.lower()
+        let lower_word = recover val clean_word.lower() end
         
-        // Check positive words
-        let positive_words = NRCLexicon.positive_words()
-        for pos_word in positive_words.values() do
-          if lower_word == pos_word then
-            try counts(0)? = counts(0)? + 1.0 end
-            break
+        // Check English lexicon first
+        try
+          let sentiment = _english_lexicon(lower_word)?
+          (let is_positive, let is_negative) = sentiment
+          if is_positive and not is_negative then
+            counts(0)? = counts(0)? + 1.0  // Positive
+          elseif is_negative and not is_positive then
+            counts(1)? = counts(1)? + 1.0  // Negative
+          elseif not is_positive and not is_negative then
+            counts(2)? = counts(2)? + 1.0  // Neutral
           end
+          // Skip ambiguous words (both positive and negative)
         end
         
-        // Check negative words  
-        let negative_words = NRCLexicon.negative_words()
-        for neg_word in negative_words.values() do
-          if lower_word == neg_word then
-            try counts(1)? = counts(1)? + 1.0 end
-            break
+        // Check Spanish lexicon if not found in English
+        try
+          let sentiment = _spanish_lexicon(lower_word)?
+          (let is_positive, let is_negative) = sentiment
+          if is_positive and not is_negative then
+            counts(0)? = counts(0)? + 1.0  // Positive
+          elseif is_negative and not is_positive then
+            counts(1)? = counts(1)? + 1.0  // Negative
+          elseif not is_positive and not is_negative then
+            counts(2)? = counts(2)? + 1.0  // Neutral
           end
-        end
-        
-        // Neutral indicators (common neutral words)
-        let neutral_words: Array[String] val = recover val ["the"; "is"; "was"; "are"; "were"; "have"; "has"; "had"; "do"; "does"; "did"; "will"; "would"; "could"; "should"; "may"; "might"; "can"; "today"; "yesterday"; "tomorrow"; "here"; "there"; "this"; "that"; "these"; "those"; "okay"; "fine"; "normal"; "regular"; "usual"; "typical"; "standard"] end
-        for neu_word in neutral_words.values() do
-          if lower_word == neu_word then
-            try counts(2)? = counts(2)? + 1.0 end
-            break
-          end
+          // Skip ambiguous words (both positive and negative)
         end
       end
       
@@ -489,225 +494,33 @@ class SentimentDomain is ProblemDomain
       scores
     end
   
-  fun _count_emotion_words(words: Array[String] val): Array[F64] val =>
-    """
-    Count emotion words based on NRC Emotion Lexicon.
-    Returns counts for: [anger, anticipation, disgust, fear, joy, sadness, surprise, trust, positive, negative]
-    """
-    recover val
-      let counts = Array[F64](10)  // Initialize with zeros
-      for _ in Range[USize](0, 10) do
-        counts.push(0.0)
-      end
-      
-      // Check each word against all emotion categories
-      for word in words.values() do
-        let clean_word = word.clone()
-        clean_word.strip(" .,!?¡¿\"")
-        let lower_word = clean_word.lower()
-        
-        // Check against each emotion's word list
-        for emotion_idx in Range[USize](0, 10) do
-          let emotion_words = NRCLexicon.get_emotion_words(emotion_idx)
-          for emotion_word in emotion_words.values() do
-            if lower_word == emotion_word then
-              try counts(emotion_idx)? = counts(emotion_idx)? + 1.0 end
-              break // Found match for this emotion, move to next
-            end
-          end
-        end
-      end
-      
-      counts
-    end
   
-  fun detect_spanish(words: Array[String] val): Bool =>
+  fun detect_spanish_from_nrc(words: Array[String] val): Bool =>
     """
-    Simple Spanish language detection based on common words and patterns.
+    Spanish language detection based on which lexicon contains more words.
     """
-    let spanish_indicators: Array[String] = ["el"; "la"; "de"; "que"; "y"; "es"; "en"; "un"; "una"; "con"; "no"; "te"; "lo"; "le"; "da"; "su"; "por"; "son"; "como"; "pero"; "me"; "se"; "si"; "o"; "ya"; "muy"; "mi"; "más"; "este"; "esta"; "siento"; "estoy"; "tengo"; "soy"; "película"; "increíble"]
+    var spanish_found: USize = 0
+    var english_found: USize = 0
     
-    var spanish_count: USize = 0
     for word in words.values() do
-      for indicator in spanish_indicators.values() do
-        if word == indicator then  // Exact match only
-          spanish_count = spanish_count + 1
-          break
-        end
+      let clean_word = word.clone()
+      clean_word.strip(" .,!?¡¿\"")
+      let lower_word = recover val clean_word.lower() end
+      
+      // Check if word exists in English lexicon
+      if _english_lexicon.contains(lower_word) then
+        english_found = english_found + 1
+      end
+      
+      // Check if word exists in Spanish lexicon
+      if _spanish_lexicon.contains(lower_word) then
+        spanish_found = spanish_found + 1
       end
     end
     
-    // If more than 20% of words are Spanish indicators, consider it Spanish
-    spanish_count.f64() > (words.size().f64() * 0.2)
+    // If more words found in Spanish lexicon, consider it Spanish
+    spanish_found > english_found
 
-// Training data structure for sentiment classification
-class SentimentSample
-  let text: String
-  let sentiment_class: USize  // 0 = positive, 1 = negative, 2 = neutral
-  
-  new create(t: String, s: USize) =>
-    text = t
-    sentiment_class = s
-
-primitive SentimentData
-  """
-  Static training data for sentiment classification.
-  Uses a curated subset from NRC lexicon for fast evaluation.
-  """
-  
-  fun get_training_samples(): Array[SentimentSample] val =>
-    """
-    Get a fixed set of training samples for neural network evaluation.
-    Each generation uses a random subset from this data.
-    """
-    recover val
-      let data = Array[SentimentSample](100)
-      
-      // Positive samples from NRC lexicon
-      data.push(SentimentSample("love", 0))
-      data.push(SentimentSample("happy", 0))
-      data.push(SentimentSample("joy", 0))
-      data.push(SentimentSample("excellent", 0))
-      data.push(SentimentSample("wonderful", 0))
-      data.push(SentimentSample("amazing", 0))
-      data.push(SentimentSample("perfect", 0))
-      data.push(SentimentSample("beautiful", 0))
-      data.push(SentimentSample("fantastic", 0))
-      data.push(SentimentSample("great", 0))
-      data.push(SentimentSample("good", 0))
-      data.push(SentimentSample("brilliant", 0))
-      data.push(SentimentSample("outstanding", 0))
-      data.push(SentimentSample("superb", 0))
-      data.push(SentimentSample("pleased", 0))
-      data.push(SentimentSample("delighted", 0))
-      data.push(SentimentSample("cheerful", 0))
-      data.push(SentimentSample("elated", 0))
-      data.push(SentimentSample("ecstatic", 0))
-      data.push(SentimentSample("blissful", 0))
-      // Spanish positive
-      data.push(SentimentSample("amor", 0))
-      data.push(SentimentSample("feliz", 0))
-      data.push(SentimentSample("alegría", 0))
-      data.push(SentimentSample("excelente", 0))
-      data.push(SentimentSample("maravilloso", 0))
-      data.push(SentimentSample("increíble", 0))
-      data.push(SentimentSample("perfecto", 0))
-      data.push(SentimentSample("hermoso", 0))
-      data.push(SentimentSample("fantástico", 0))
-      data.push(SentimentSample("bueno", 0))
-      
-      // Negative samples from NRC lexicon
-      data.push(SentimentSample("hate", 1))
-      data.push(SentimentSample("sad", 1))
-      data.push(SentimentSample("angry", 1))
-      data.push(SentimentSample("terrible", 1))
-      data.push(SentimentSample("awful", 1))
-      data.push(SentimentSample("horrible", 1))
-      data.push(SentimentSample("disgusting", 1))
-      data.push(SentimentSample("worst", 1))
-      data.push(SentimentSample("bad", 1))
-      data.push(SentimentSample("evil", 1))
-      data.push(SentimentSample("cruel", 1))
-      data.push(SentimentSample("nasty", 1))
-      data.push(SentimentSample("vile", 1))
-      data.push(SentimentSample("wicked", 1))
-      data.push(SentimentSample("depressed", 1))
-      data.push(SentimentSample("miserable", 1))
-      data.push(SentimentSample("furious", 1))
-      data.push(SentimentSample("enraged", 1))
-      data.push(SentimentSample("livid", 1))
-      data.push(SentimentSample("outraged", 1))
-      // Spanish negative
-      data.push(SentimentSample("odio", 1))
-      data.push(SentimentSample("triste", 1))
-      data.push(SentimentSample("enojado", 1))
-      data.push(SentimentSample("terrible", 1))
-      data.push(SentimentSample("horrible", 1))
-      data.push(SentimentSample("malo", 1))
-      data.push(SentimentSample("pésimo", 1))
-      data.push(SentimentSample("furioso", 1))
-      data.push(SentimentSample("deprimido", 1))
-      data.push(SentimentSample("molesto", 1))
-      
-      // Neutral samples
-      data.push(SentimentSample("table", 2))
-      data.push(SentimentSample("chair", 2))
-      data.push(SentimentSample("book", 2))
-      data.push(SentimentSample("car", 2))
-      data.push(SentimentSample("house", 2))
-      data.push(SentimentSample("street", 2))
-      data.push(SentimentSample("city", 2))
-      data.push(SentimentSample("country", 2))
-      data.push(SentimentSample("today", 2))
-      data.push(SentimentSample("yesterday", 2))
-      data.push(SentimentSample("tomorrow", 2))
-      data.push(SentimentSample("regular", 2))
-      data.push(SentimentSample("normal", 2))
-      data.push(SentimentSample("typical", 2))
-      data.push(SentimentSample("standard", 2))
-      data.push(SentimentSample("usual", 2))
-      data.push(SentimentSample("common", 2))
-      data.push(SentimentSample("average", 2))
-      data.push(SentimentSample("ordinary", 2))
-      data.push(SentimentSample("plain", 2))
-      // Spanish neutral
-      data.push(SentimentSample("mesa", 2))
-      data.push(SentimentSample("silla", 2))
-      data.push(SentimentSample("libro", 2))
-      data.push(SentimentSample("casa", 2))
-      data.push(SentimentSample("calle", 2))
-      data.push(SentimentSample("ciudad", 2))
-      data.push(SentimentSample("hoy", 2))
-      data.push(SentimentSample("ayer", 2))
-      data.push(SentimentSample("mañana", 2))
-      data.push(SentimentSample("normal", 2))
-      
-      data
-    end
-  
-  fun get_test_cases(): Array[SentimentSample] val =>
-    """
-    Fixed test cases for consistent evaluation across generations.
-    """
-    recover val
-      let test_cases = Array[SentimentSample](30)
-      
-      // Test cases that should be learned correctly
-      test_cases.push(SentimentSample("me gusta", 0))      // I like it
-      test_cases.push(SentimentSample("love", 0))
-      test_cases.push(SentimentSample("happy", 0))
-      test_cases.push(SentimentSample("excellent", 0))
-      test_cases.push(SentimentSample("fantástico", 0))
-      test_cases.push(SentimentSample("increíble", 0))
-      test_cases.push(SentimentSample("perfecto", 0))
-      test_cases.push(SentimentSample("wonderful", 0))
-      test_cases.push(SentimentSample("amazing", 0))
-      test_cases.push(SentimentSample("excelente", 0))
-      
-      test_cases.push(SentimentSample("no me gusta", 1))   // I don't like it
-      test_cases.push(SentimentSample("hate", 1))
-      test_cases.push(SentimentSample("terrible", 1))
-      test_cases.push(SentimentSample("awful", 1))
-      test_cases.push(SentimentSample("odio", 1))
-      test_cases.push(SentimentSample("horrible", 1))
-      test_cases.push(SentimentSample("malo", 1))
-      test_cases.push(SentimentSample("pésimo", 1))
-      test_cases.push(SentimentSample("disgusting", 1))
-      test_cases.push(SentimentSample("worst", 1))
-      
-      test_cases.push(SentimentSample("table", 2))
-      test_cases.push(SentimentSample("chair", 2))
-      test_cases.push(SentimentSample("book", 2))
-      test_cases.push(SentimentSample("today", 2))
-      test_cases.push(SentimentSample("mesa", 2))
-      test_cases.push(SentimentSample("libro", 2))
-      test_cases.push(SentimentSample("hoy", 2))
-      test_cases.push(SentimentSample("normal", 2))
-      test_cases.push(SentimentSample("regular", 2))
-      test_cases.push(SentimentSample("típico", 2))
-      
-      test_cases
-    end
 
 primitive SentimentGenomeOps is GenomeOperations
   """
