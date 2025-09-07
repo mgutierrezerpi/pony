@@ -10,6 +10,7 @@ Commands:
   help                    - Show this help message
   compile <project>       - Compile the project to project/bin/
   run <project> [args]    - Run the compiled project with optional arguments
+  test <project>          - Run unit tests for the project
 
 Examples:
   ./pony help
@@ -18,6 +19,7 @@ Examples:
   ./pony run fibonacci train
   ./pony run fibonacci test 100
   ./pony run fibonacci resume
+  ./pony test fibonacci
 EOF
 }
 
@@ -77,6 +79,45 @@ case "$COMMAND" in
             echo "Running $PROJECT..."
         fi
         "./$EXECUTABLE" $ARGS
+        ;;
+        
+    "test")
+        if [ ! -d "$PROJECT" ]; then
+            echo "Error: Project directory '$PROJECT' does not exist"
+            exit 1
+        fi
+        
+        echo "Running tests for $PROJECT..."
+        mkdir -p "$PROJECT/bin"
+        
+        # Check if we have a test_runner.pony file
+        if [ -f "$PROJECT/test_runner.pony" ]; then
+            echo "Compiling and running test suite..."
+            
+            # Create a temporary test directory
+            mkdir -p "$PROJECT/test_build"
+            cp "$PROJECT"/*.pony "$PROJECT/test_build/"
+            
+            # Make test_runner.pony the main file by removing main.pony from test build
+            rm "$PROJECT/test_build/main.pony" 2>/dev/null || true
+            
+            # Compile from the test build directory
+            ponyc "$PROJECT/test_build" --output "$PROJECT/bin" --bin-name test_runner
+            
+            # Clean up
+            rm -rf "$PROJECT/test_build"
+            
+            if [ $? -eq 0 ] && [ -f "$PROJECT/bin/test_runner" ]; then
+                echo "Running VM tests..."
+                "./$PROJECT/bin/test_runner"
+            else
+                echo "❌ Test compilation failed"
+                exit 1
+            fi
+        else
+            echo "No test_runner.pony found"
+            exit 1
+        fi
         ;;
         
     *)
