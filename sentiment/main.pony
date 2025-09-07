@@ -298,9 +298,9 @@ actor Main
       env.out.print("Text: \"" + phrase + "\"")
       
       // Simulate multi-gene analysis
-      let keyword_analysis = _analyze_keywords(phrase)
+      let keyword_analysis = _analyze_keywords(phrase, env)
       let sentiment_analysis = _analyze_sentiment_context(phrase)
-      let final_decision = _combine_gene_results(keyword_analysis, sentiment_analysis, phrase)
+      let final_decision = _combine_gene_results(keyword_analysis, sentiment_analysis, phrase, env)
       
       env.out.print("  Gene 1 (Keywords): " + keyword_analysis)
       env.out.print("  Gene 2 (Context): " + sentiment_analysis)  
@@ -335,7 +335,7 @@ actor Main
     // Gene 1 Analysis: Keyword Identification
     env.out.print("Gene 1: Keyword Identification Analysis")
     env.out.print("---------------------------------------")
-    let keyword_result = _analyze_keywords(text)
+    let keyword_result = _analyze_keywords(text, env)
     env.out.print("Result: " + keyword_result)
     env.out.print("")
     
@@ -349,7 +349,7 @@ actor Main
     // Combined Gene Analysis
     env.out.print("Gene Collaboration Analysis")
     env.out.print("---------------------------")
-    let final_result = _combine_gene_results(keyword_result, sentiment_result, text)
+    let final_result = _combine_gene_results(keyword_result, sentiment_result, text, env)
     env.out.print("🎯 Final Multi-Gene Classification: " + final_result)
     
     // Language detection
@@ -357,7 +357,7 @@ actor Main
     env.out.print("")
     env.out.print("Detected language: " + if is_spanish then "Spanish 🇪🇸" else "English 🇺🇸" end)
   
-  fun _analyze_keywords(text: String): String =>
+  fun _analyze_keywords(text: String, env: Env): String =>
     """
     Gene 1: Keyword Identification using NRC emotion dataset.
     Uses trained neural network that learned from NRC emotions (joy, anger, fear, etc.).
@@ -368,14 +368,14 @@ actor Main
     
     // For each word, get sentiment classification from NRC-trained model
     for word in words.values() do
-      let word_sentiment = _get_nrc_word_sentiment(word)
-      // Give stronger weight to strong sentiment words
+      let word_sentiment = _get_nrc_word_sentiment(word, env)
+      // Only count emotional words, ignore neutral words completely
       let weight: F64 = if (word_sentiment == 0) or (word_sentiment == 4) then
         3.0  // Strong positive/negative get 3x weight
       elseif (word_sentiment == 1) or (word_sentiment == 3) then
         2.0  // Regular positive/negative get 2x weight  
       else
-        1.0  // Neutral gets normal weight
+        0.0  // Neutral gets NO weight - don't dilute emotional words
       end
       try
         sentiment_scores(word_sentiment)? = sentiment_scores(word_sentiment)? + weight
@@ -420,111 +420,65 @@ actor Main
       "Gene 1 (NRC-Trained NN): Classification error"
     end
   
-  fun _get_nrc_word_sentiment(word: String): USize =>
+  fun _get_nrc_word_sentiment(word: String, env: Env): USize =>
     """
     Get word sentiment from NRC emotion lexicon, mapping emotions to sentiment classes.
-    Uses the same logic as Gene1Trainer to categorize emotions.
+    Uses the existing domain's NRC data loading.
     """
     let clean_word = _clean_word(word)
     
-    // Get NRC emotions for this word
-    let emotions = _get_word_emotions_from_nrc(clean_word)
+    // Load from the actual NRC lexicons that are already being used by the system
+    let english_lexicon = FileReader.read_nrc_lexicon(env, "sentiment/data/English-NRC-EmoLex.txt")
+    let spanish_lexicon = FileReader.read_nrc_lexicon(env, "sentiment/data/Spanish-NRC-EmoLex.txt")
     
-    // Map emotions to sentiment using same logic as Gene1Trainer
-    var positive_score: F64 = 0.0
-    var negative_score: F64 = 0.0
-    
-    // Map emotions to positive/negative with intensity weights
-    for emotion in emotions.values() do
-      match emotion
-      // Strong positive emotions
-      | "joy" => positive_score = positive_score + 3.0
-      | "positive" => positive_score = positive_score + 2.0
-      | "anticipation" => positive_score = positive_score + 1.5
-      | "trust" => positive_score = positive_score + 2.0
-      | "surprise" => positive_score = positive_score + 1.0
+    // Check English lexicon first
+    try
+      let sentiment = english_lexicon(clean_word)?
+      let is_positive = sentiment._1
+      let is_negative = sentiment._2
       
-      // Strong negative emotions  
-      | "anger" => negative_score = negative_score + 3.0
-      | "fear" => negative_score = negative_score + 3.0
-      | "sadness" => negative_score = negative_score + 3.0
-      | "negative" => negative_score = negative_score + 2.0
-      | "disgust" => negative_score = negative_score + 3.0
-      end
-    end
-    
-    // Classify based on dominant sentiment with intensity thresholds
-    let total_sentiment = positive_score + negative_score
-    
-    if total_sentiment == 0.0 then
-      2 // Neutral
-    elseif positive_score > negative_score then
-      if positive_score >= 3.0 then
-        0 // Strong Positive (joy, multiple positive emotions)
-      else
+      if is_positive and is_negative then
+        2 // Neutral (conflicting emotions)
+      elseif is_positive then
         1 // Positive
+      elseif is_negative then
+        4 // Strong Negative
+      else
+        2 // Neutral
       end
     else
-      if negative_score >= 3.0 then
-        4 // Strong Negative (anger, fear, sadness, disgust)
+      // Check Spanish lexicon
+      try
+        let sentiment = spanish_lexicon(clean_word)?
+        let is_positive = sentiment._1
+        let is_negative = sentiment._2
+        
+        if is_positive and is_negative then
+          2 // Neutral (conflicting emotions)
+        elseif is_positive then
+          1 // Positive
+        elseif is_negative then
+          4 // Strong Negative
+        else
+          2 // Neutral
+        end
       else
-        3 // Negative
+        2 // Neutral (word not found in either lexicon)
       end
     end
   
-  fun _get_word_emotions_from_nrc(word: String): Array[String] val =>
-    """Get list of emotions associated with word from NRC lexicon."""
-    // This is a simplified version - in reality would load from actual NRC files
-    // For demonstration, using known emotion mappings
-    recover val
-      let emotions = Array[String]
-      
-      // Map common words to their NRC emotions
-      match word
-      | "hate" => emotions.push("anger"); emotions.push("sadness"); emotions.push("negative")
-      | "love" => emotions.push("joy"); emotions.push("positive"); emotions.push("trust") 
-      | "happy" => emotions.push("joy"); emotions.push("positive")
-      | "sad" => emotions.push("sadness"); emotions.push("negative")
-      | "angry" => emotions.push("anger"); emotions.push("negative")
-      | "afraid" => emotions.push("fear"); emotions.push("negative")
-      | "disgusting" => emotions.push("disgust"); emotions.push("negative")
-      | "joy" => emotions.push("joy"); emotions.push("positive")
-      | "wonderful" => emotions.push("joy"); emotions.push("positive"); emotions.push("trust")
-      | "terrible" => emotions.push("fear"); emotions.push("sadness"); emotions.push("negative")
-      | "amazing" => emotions.push("joy"); emotions.push("positive"); emotions.push("surprise")
-      | "fantastic" => emotions.push("joy"); emotions.push("positive")
-      | "awful" => emotions.push("disgust"); emotions.push("sadness"); emotions.push("negative")
-      | "bad" => emotions.push("negative")
-      | "good" => emotions.push("positive")
-      | "great" => emotions.push("joy"); emotions.push("positive")
-      end
-      
-      emotions
-    end
   
   fun _clean_word(word: String): String =>
     """Remove punctuation from word for lexicon lookup."""
     // Simplified approach: just return trimmed lowercase word
     word.lower().trim()
   
-  fun _get_word_intensity(word: String): F64 =>
-    """Estimate word intensity based on common patterns."""
-    // Strong negative words
-    let strong_negative = ["hate"; "disgusting"; "terrible"; "awful"; "horrible"; "pathetic"; "despise"; "abhor"; "loathe"; "detest"]
-    // Strong positive words  
-    let strong_positive = ["amazing"; "fantastic"; "wonderful"; "excellent"; "perfect"; "incredible"; "outstanding"; "magnificent"; "brilliant"; "superb"]
-    
-    if strong_negative.contains(word) then
-      2.0  // High intensity
-    elseif strong_positive.contains(word) then
-      2.0  // High intensity
-    else
-      1.0  // Normal intensity
-    end
   
   fun _analyze_sentiment_context(text: String): String =>
     """Gene 2: Analyze sentiment based on context and structure."""
-    let has_negation = text.contains("not") or text.contains("never") or text.contains("don't")
+    let has_negation = text.contains("not") or text.contains("never") or text.contains("don't") or 
+                      text.contains("no way") or text.contains("can't") or text.contains("won't") or
+                      text.contains("didn't") or text.contains("doesn't") or text.contains("shouldn't")
     let has_intensifier = text.contains("very") or text.contains("really") or text.contains("absolutely")
     let has_personal = text.contains("i ") or text.contains("me ") or text.contains("my ")
     let has_exclamation = text.contains("!")
@@ -543,7 +497,7 @@ actor Main
     (if has_intensifier then " (intensified)" else "" end) +
     (if has_personal then " (personal)" else "" end)
   
-  fun _combine_gene_results(keyword_result: String, sentiment_result: String, text: String): String =>
+  fun _combine_gene_results(keyword_result: String, sentiment_result: String, text: String, env: Env): String =>
     """Combine both gene analyses for final decision."""
     let has_strong_negative_keywords = keyword_result.contains("Strong Negative")
     let has_negative_keywords = keyword_result.contains("Negative") and not has_strong_negative_keywords
@@ -552,7 +506,7 @@ actor Main
     let has_intensifier = sentiment_result.contains("intensified")
     let has_personal = sentiment_result.contains("personal")
     
-    // Multi-gene decision logic with better strong negative detection
+    // Enhanced multi-gene decision logic
     if has_strong_negative_keywords and has_personal then
       "😞 ❌ STRONGLY NEGATIVE (Gene Collaboration: Strong negative keywords + personal context)"
     elseif has_strong_negative_keywords and has_intensifier then
@@ -567,6 +521,11 @@ actor Main
       "😞 ❌ Negative (Gene Collaboration: Positive keywords negated)"
     elseif has_positive_keywords then
       "😊 ✅ Positive (Gene Collaboration: Positive keywords detected)"
+    // Handle negation patterns even without strong keywords
+    elseif has_negation and has_personal and _contains_mild_positive_indicators(text, env) then
+      "😞 ❌ Negative (Gene Collaboration: Negated mild positive with personal context)"  
+    elseif has_negation and _contains_mild_positive_indicators(text, env) then
+      "😞 ❌ Negative (Gene Collaboration: Negated mild positive indicators)"
     else
       "😐 ⚪ Neutral (Gene Collaboration: No clear sentiment pattern)"
     end
@@ -584,4 +543,19 @@ actor Main
     end
     
     spanish_count > 0
+  
+  fun _contains_mild_positive_indicators(text: String, env: Env): Bool =>
+    """Check for ANY positive words from NRC dataset that might be negated."""
+    // Use NRC dataset instead of hardcoded words
+    let words = recover val text.lower().split(" ") end
+    
+    for word in words.values() do
+      let word_sentiment = _get_nrc_word_sentiment(word, env)
+      // Check if any word is positive (class 0 or 1)
+      if (word_sentiment == 0) or (word_sentiment == 1) then
+        return true
+      end
+    end
+    
+    false
   
