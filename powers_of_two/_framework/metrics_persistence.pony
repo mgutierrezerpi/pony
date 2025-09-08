@@ -147,8 +147,8 @@ primitive EvolutionDataArchiver
       yaml_builder.append((fitness * 100).string())
       yaml_builder.append("%\n")
       yaml_builder.append("  test_cases_passed_estimate: ")
-      yaml_builder.append((fitness * 8).string())  // Assumes 8 test cases for powers of 2
-      yaml_builder.append(" / 8\n")
+      yaml_builder.append((fitness * 12).string())  // Now testing 12 cases (8 fixed + 4 random)
+      yaml_builder.append(" / 12\n")
       yaml_builder.append("  performance_category: ")
       if fitness >= 0.9 then
         yaml_builder.append("excellent\n")
@@ -187,9 +187,9 @@ primitive EvolutionDataArchiver
       summary_builder.append("  vm_registers_available: 4\n")
       summary_builder.append("\nproblem_domain:\n")
       summary_builder.append("  name: \"Powers of 2\"\n")
-      summary_builder.append("  test_case_count: 8\n")
-      summary_builder.append("  input_range: \"2^0 to 2^7\"\n")
-      summary_builder.append("  expected_outputs: [1, 2, 4, 8, 16, 32, 64, 128]\n")
+      summary_builder.append("  test_case_count: 12\n")
+      summary_builder.append("  input_range: \"2^0 to 2^9 (8 fixed + 4 random)\"\n")
+      summary_builder.append("  expected_outputs: \"[1, 2, 4, 8, 16, 32, 64, 128] + 4 random cases\"\n")
       summary_builder
     end
   

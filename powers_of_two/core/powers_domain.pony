@@ -53,46 +53,68 @@ primitive PowersDomain is ProblemDomain
   
   fun evaluate(candidate_genome: Array[U8] val): F64 =>
     """
-    Evaluates how well a genome performs on the powers of 2 test cases.
+    Evaluates how well a genome performs on powers of 2 test cases.
     
-    HYBRID APPROACH: Exact matches get full credit, but provide minimal gradient
-    to prevent all genomes having identical fitness (which breaks selection).
+    COMPREHENSIVE TESTING: Fixed test cases (0-7) + random test cases
+    to prevent overfitting and ensure the solution generalizes well.
     """
     var total_fitness_score: F64 = 0.0
-    let test_exponents: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7]  // Test 2^0 through 2^7
     
-    for test_exponent in test_exponents.values() do
+    // Fixed test cases: 2^0 through 2^7 (must get these right)
+    let fixed_exponents: Array[USize] = [0; 1; 2; 3; 4; 5; 6; 7]
+    
+    for test_exponent in fixed_exponents.values() do
       let correct_answer = PowersOfTwoCalculator.compute_power_of_2(test_exponent)
       let genome_answer = VM.run(candidate_genome, test_exponent)
       
       if genome_answer == correct_answer then
-        // Full credit for exact match
         total_fitness_score = total_fitness_score + 1.0
       else
-        // Tiny credit based on how far off we are - just enough to break ties
-        // This prevents the n-1 local optimum while still allowing selection
         if correct_answer > 0 then
           let error_ratio = (correct_answer - genome_answer).abs().f64() / correct_answer.f64()
-          let minimal_credit = (1.0 - error_ratio.min(1.0)) * 0.001  // Max 0.1% credit
+          let minimal_credit = (1.0 - error_ratio.min(1.0)) * 0.001  // Tiny partial credit
           total_fitness_score = total_fitness_score + minimal_credit
         end
       end
     end
     
-    // Convert to percentage: total_score / number_of_tests  
-    total_fitness_score / test_exponents.size().f64()
+    // Random test cases: Test with random exponents to prevent overfitting
+    // Use seeded random generator for reproducible testing
+    let test_rng = Rand(42)  // Fixed seed for consistent evaluation
+    let random_test_count: USize = 4  // Test 4 additional random cases
+    
+    for _ in Range[USize](0, random_test_count) do
+      let random_exponent = test_rng.next().usize() % 10  // Test 2^0 through 2^9
+      let correct_answer = PowersOfTwoCalculator.compute_power_of_2(random_exponent)
+      let genome_answer = VM.run(candidate_genome, random_exponent)
+      
+      if genome_answer == correct_answer then
+        total_fitness_score = total_fitness_score + 1.0
+      else
+        if correct_answer > 0 then
+          let error_ratio = (correct_answer - genome_answer).abs().f64() / correct_answer.f64()
+          let minimal_credit = (1.0 - error_ratio.min(1.0)) * 0.001
+          total_fitness_score = total_fitness_score + minimal_credit
+        end
+      end
+    end
+    
+    // Convert to percentage: total_score / total_test_count
+    let total_test_count = fixed_exponents.size() + random_test_count
+    total_fitness_score / total_test_count.f64()
   
   fun perfect_fitness(): F64 => 0.99999
   
   fun display_result(genome_to_display: Array[U8] val): String =>
     """
     Shows sample outputs from the genome for debugging/visualization.
-    Tests the first 6 powers of 2 and shows results with correctness indicators.
+    Tests both fixed cases and some random cases to show generalization.
     """
-    let sample_test_cases: Array[USize] = [0; 1; 2; 3; 4; 5]
     var results_summary = "Powers of 2 results: "
     
-    for test_case in sample_test_cases.values() do
+    // Show fixed test cases
+    let fixed_cases: Array[USize] = [0; 1; 2; 3; 4; 5]
+    for test_case in fixed_cases.values() do
       let genome_result = VM.run(genome_to_display, test_case)
       let expected_result = PowersOfTwoCalculator.compute_power_of_2(test_case)
       
@@ -101,9 +123,26 @@ primitive PowersDomain is ProblemDomain
       if genome_result == expected_result then
         results_summary = results_summary + "✓ "
       else
-        results_summary = results_summary + "(expected:" + expected_result.string() + ") "
+        results_summary = results_summary + "(exp:" + expected_result.string() + ") "
       end
     end
+    
+    // Show a couple random cases for generalization testing
+    results_summary = results_summary + "| Random: "
+    let random_cases: Array[USize] = [8; 9]  // Test 2^8=256, 2^9=512
+    for test_case in random_cases.values() do
+      let genome_result = VM.run(genome_to_display, test_case)
+      let expected_result = PowersOfTwoCalculator.compute_power_of_2(test_case)
+      
+      results_summary = results_summary + "2^" + test_case.string() + "=" + genome_result.string()
+      
+      if genome_result == expected_result then
+        results_summary = results_summary + "✓ "
+      else
+        results_summary = results_summary + "(exp:" + expected_result.string() + ") "
+      end
+    end
+    
     results_summary
 
 primitive PowersGenomeOperations is GenomeOperations
