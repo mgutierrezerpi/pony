@@ -15,14 +15,17 @@ Commands:
 Available Projects:
   fibonacci              - Evolve VM programs to compute Fibonacci sequences
   sentiment              - Multilingual emotion detection using neural networks
+  powers_of_two          - Evolve VM programs to compute powers of 2
 
 Examples:
   ./pony help
   ./pony compile fibonacci
   ./pony compile sentiment
+  ./pony compile powers_of_two
   ./pony run fibonacci train
   ./pony run sentiment analyze "I'm so happy today!"
-  ./pony run sentiment analyze "Me siento triste"
+  ./pony run powers_of_two train
+  ./pony run powers_of_two 5
   ./pony test fibonacci
 EOF
 }
