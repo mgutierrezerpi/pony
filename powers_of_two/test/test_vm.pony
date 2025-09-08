@@ -1,5 +1,5 @@
 // Test suite for Powers of Two Virtual Machine and Genetic Algorithm
-// Validates VM instruction execution, fitness calculation, and evolution components
+// Validates VM nucleo execution, fitness calculation, and evolution components
 
 use "pony_test"
 use "collections"
@@ -7,16 +7,17 @@ use "random"
 use "./core"
 use "./_framework"
 
-actor \nodoc\ TestMain is TestList
+// Test runner that works alongside main.pony without conflict
+actor \nodoc\ TestRunner is TestList
   new create(env: Env) => PonyTest(env, this)
   
   new make() => None
   
   fun tag tests(test: PonyTest) =>
     // Virtual Machine Core Tests
-    test(_TestVMBasicInstructions)
+    test(_TestVMBasicNucleos)
     test(_TestVMRegisterOperations)
-    test(_TestVMLoopingInstructions)
+    test(_TestVMLoopingNucleos)
     test(_TestVMInfiniteLoopProtection)
     
     // Powers Domain Tests  
@@ -33,77 +34,78 @@ actor \nodoc\ TestMain is TestList
 // Virtual Machine Instruction Tests
 // =============================================================================
 
-class \nodoc\ iso _TestVMBasicInstructions is UnitTest
+class \nodoc\ iso _TestVMBasicNucleos is UnitTest
   """
-  Tests basic VM instructions: NOP, ZERO, INC, MOV, ADD, CONST0, CONST1
+  Tests basic VM nucleos: NOP, ZERO, INC, MOV, ADD, CONST0, CONST1
   """
   
-  fun name(): String => "VM Basic Instructions"
+  fun name(): String => "VM Basic Nucleos"
   
   fun apply(test_helper: TestHelper) =>
-    // Test NOP instruction does nothing
+    // Test NOP nucleo does nothing
     let nop_program: Array[U8] val = [0; 0; 0]  // NOP R0, R0
     let nop_result = VM.run(nop_program, 5)
-    test_helper.assert_eq[USize](nop_result, 0, "NOP should leave R0 at 0")
+    test_helper.assert_eq[USize](nop_result, 0, "NOP nucleo should leave R0 at 0")
     
-    // Test ZERO instruction sets register to 0
+    // Test ZERO nucleo sets register to 0
     let zero_program: Array[U8] val = [7; 0; 0; 1; 0; 0]  // CONST1 R0; ZERO R0  
     let zero_result = VM.run(zero_program, 0)
-    test_helper.assert_eq[USize](zero_result, 0, "ZERO should clear register")
+    test_helper.assert_eq[USize](zero_result, 0, "ZERO nucleo should clear register")
     
-    // Test INC instruction increments register
+    // Test INC nucleo increments register
     let increment_program: Array[U8] val = [2; 0; 0; 2; 0; 0]  // INC R0; INC R0
     let increment_result = VM.run(increment_program, 0)
-    test_helper.assert_eq[USize](increment_result, 2, "INC should increment register twice")
+    test_helper.assert_eq[USize](increment_result, 2, "INC nucleo should increment register twice")
     
     // Test CONST1 loads constant 1
     let const1_program: Array[U8] val = [7; 0; 0]  // CONST1 R0
     let const1_result = VM.run(const1_program, 0)
-    test_helper.assert_eq[USize](const1_result, 1, "CONST1 should load 1 into register")
+    test_helper.assert_eq[USize](const1_result, 1, "CONST1 nucleo should load 1 into register")
 
 class \nodoc\ iso _TestVMRegisterOperations is UnitTest
   """
-  Tests register manipulation instructions: MOV, ADD, SWAP, LOADN
+  Tests register manipulation nucleos: MOV, ADD, SWAP, LOADN
   """
   
   fun name(): String => "VM Register Operations"
   
   fun apply(test_helper: TestHelper) =>
-    // Test MOV instruction copies between registers
+    // Test MOV nucleo copies between registers
     let move_program: Array[U8] val = [7; 1; 0; 3; 0; 1]  // CONST1 R1; MOV R0, R1
     let move_result = VM.run(move_program, 0)
-    test_helper.assert_eq[USize](move_result, 1, "MOV should copy value between registers")
+    test_helper.assert_eq[USize](move_result, 1, "MOV nucleo should copy value between registers")
     
-    // Test ADD instruction adds registers
+    // Test ADD nucleo adds registers
     let add_program: Array[U8] val = [7; 0; 0; 7; 1; 0; 4; 0; 1]  // CONST1 R0; CONST1 R1; ADD R0, R1
     let add_result = VM.run(add_program, 0)
-    test_helper.assert_eq[USize](add_result, 2, "ADD should sum register values")
+    test_helper.assert_eq[USize](add_result, 2, "ADD nucleo should sum register values")
     
-    // Test LOADN instruction loads input value
+    // Test LOADN nucleo loads input value
     let loadn_program: Array[U8] val = [6; 0; 0]  // LOADN R0
     let loadn_result = VM.run(loadn_program, 42)
-    test_helper.assert_eq[USize](loadn_result, 42, "LOADN should load input value into register")
+    test_helper.assert_eq[USize](loadn_result, 42, "LOADN nucleo should load input value into register")
 
-class \nodoc\ iso _TestVMLoopingInstructions is UnitTest
+class \nodoc\ iso _TestVMLoopingNucleos is UnitTest
   """
-  Tests advanced instructions: DEC, DOUBLE, LOOP for implementing powers of 2
+  Tests advanced nucleos: DEC, DOUBLE, LOOP for implementing powers of 2
+  These combine into codons (functional sequences) for complex operations
   """
   
-  fun name(): String => "VM Looping Instructions"
+  fun name(): String => "VM Looping Nucleos"
   
   fun apply(test_helper: TestHelper) =>
-    // Test DEC instruction decrements register
+    // Test DEC nucleo decrements register
     let decrement_program: Array[U8] val = [7; 0; 0; 2; 0; 0; 9; 0; 0]  // CONST1 R0; INC R0; DEC R0
     let decrement_result = VM.run(decrement_program, 0)
-    test_helper.assert_eq[USize](decrement_result, 1, "DEC should decrement register value")
+    test_helper.assert_eq[USize](decrement_result, 1, "DEC nucleo should decrement register value")
     
-    // Test DOUBLE instruction multiplies by 2
+    // Test DOUBLE nucleo multiplies by 2
     let double_program: Array[U8] val = [7; 0; 0; 2; 0; 0; 10; 0; 0]  // CONST1 R0; INC R0; DOUBLE R0
     let double_result = VM.run(double_program, 0)
-    test_helper.assert_eq[USize](double_result, 4, "DOUBLE should multiply register by 2")
+    test_helper.assert_eq[USize](double_result, 4, "DOUBLE nucleo should multiply register by 2")
     
-    // Test LOOP instruction with a simple counting loop
-    // Program: CONST1 R0; CONST0 R1; LOOP 4, R0; INC R1; (continue)
+    // Test LOOP nucleo with a simple counting codon
+    // Codon sequence: CONST1 R0; CONST0 R1; LOOP 4, R0; INC R1; (continue)
     let loop_program: Array[U8] val = [
       7; 0; 0   // CONST1 R0 (counter = 1)
       8; 1; 0   // CONST0 R1 (accumulator = 0)  
@@ -112,7 +114,7 @@ class \nodoc\ iso _TestVMLoopingInstructions is UnitTest
       2; 1; 0   // INC R1 (increment accumulator)
     ]
     let loop_result = VM.run(loop_program, 0)  // Should increment R1 once (since R0 starts at 1)
-    test_helper.assert_eq[USize](loop_result, 1, "LOOP should decrement counter and execute loop body once")
+    test_helper.assert_eq[USize](loop_result, 1, "LOOP nucleo should decrement counter and execute codon once")
 
 class \nodoc\ iso _TestVMInfiniteLoopProtection is UnitTest
   """

@@ -1,5 +1,5 @@
 // Virtual Machine execution engine for powers of 2
-// Executes evolved genomes as VM programs with registers and instructions
+// Executes evolved genomes as VM programs with registers and nucleos (atomic operations)
 
 primitive VirtualMachine
   """
@@ -7,9 +7,9 @@ primitive VirtualMachine
   
   Architecture:
   - 4 registers (R0, R1, R2, R3) for storing values
-  - 16 instructions per program (3 bytes each = 48 total bytes)
-  - 12 different opcodes for various operations
-  - Programs compute 2^n for input n
+  - 16 nucleos per genome (3 bytes each = 48 total bytes)
+  - 12 different nucleo types for various atomic operations
+  - Nucleos combine into codons (functional sequences) to compute 2^n for input n
   """
   
   fun run(program_genome: Array[U8] val, input_value: USize): USize =>
@@ -30,36 +30,36 @@ primitive VirtualMachine
     var register_2: USize = 0   // General purpose register
     var register_3: USize = 0   // General purpose register
     
-    // Execute each instruction in the program
+    // Execute each nucleo in the genome
     var program_counter: USize = 0
-    let max_instructions: USize = VMConfig.prog_len()  // 16 instructions
+    let max_nucleos: USize = VMArchitecture.nucleos_per_genome()  // 16 nucleos
     var execution_steps: USize = 0
     let max_execution_steps: USize = 1000  // Prevent infinite loops
     
-    while (program_counter < max_instructions) and (execution_steps < max_execution_steps) do
-      let instruction_byte_offset = program_counter * 3
+    while (program_counter < max_nucleos) and (execution_steps < max_execution_steps) do
+      let nucleo_byte_offset = program_counter * 3
       
       // Safety check for genome bounds
-      if instruction_byte_offset >= program_genome.size() then break end
+      if nucleo_byte_offset >= program_genome.size() then break end
       
       try
-        // Decode the 3-byte instruction
-        let raw_opcode = program_genome(instruction_byte_offset)?
-        let raw_destination = program_genome(instruction_byte_offset + 1)?
-        let raw_source = program_genome(instruction_byte_offset + 2)?
+        // Decode the 3-byte nucleo
+        let raw_opcode = program_genome(nucleo_byte_offset)?
+        let raw_destination = program_genome(nucleo_byte_offset + 1)?
+        let raw_source = program_genome(nucleo_byte_offset + 2)?
         
         // Clamp values to valid ranges
-        let opcode = _InstructionDecoder.valid_opcode(raw_opcode)
-        let destination_register = _InstructionDecoder.valid_register(raw_destination)
-        let source_register = _InstructionDecoder.valid_register(raw_source)
+        let nucleo_opcode = NucleoValidator.clamp_nucleo_opcode(raw_opcode)
+        let destination_register = NucleoValidator.clamp_register_index(raw_destination)
+        let source_register = NucleoValidator.clamp_register_index(raw_source)
         
-        // Execute the instruction
-        match opcode
-        | OPCODE.nop() => 
+        // Execute the nucleo (atomic operation)
+        match nucleo_opcode
+        | VMNucleoSet.no_operation() => 
           // No operation - do nothing
           None
           
-        | OPCODE.zero() =>
+        | VMNucleoSet.zero_register() =>
           // Set destination register to zero
           match destination_register
           | 0 => register_0 = 0
@@ -68,7 +68,7 @@ primitive VirtualMachine
           | 3 => register_3 = 0
           end
           
-        | OPCODE.inc() =>
+        | VMNucleoSet.increment() =>
           // Increment destination register by 1
           match destination_register
           | 0 => register_0 = register_0 + 1
@@ -77,13 +77,13 @@ primitive VirtualMachine
           | 3 => register_3 = register_3 + 1
           end
           
-        | OPCODE.mov() =>
+        | VMNucleoSet.move_register() =>
           // Move value from source register to destination register
           let source_value = _RegisterAccess.read_register(source_register, register_0, register_1, register_2, register_3)
           (register_0, register_1, register_2, register_3) = 
             _RegisterAccess.write_register(destination_register, source_value, register_0, register_1, register_2, register_3)
           
-        | OPCODE.add() =>
+        | VMNucleoSet.add_registers() =>
           // Add source register value to destination register
           let source_value = _RegisterAccess.read_register(source_register, register_0, register_1, register_2, register_3)
           match destination_register
@@ -93,12 +93,12 @@ primitive VirtualMachine
           | 3 => register_3 = register_3 + source_value
           end
           
-        | OPCODE.swap() =>
+        | VMNucleoSet.swap_registers() =>
           // Swap values between two registers
           (register_0, register_1, register_2, register_3) = 
             _RegisterSwapper.swap_registers(destination_register, source_register, register_0, register_1, register_2, register_3)
           
-        | OPCODE.loadn() =>
+        | VMNucleoSet.load_input() =>
           // Load the input value (n) into destination register
           match destination_register
           | 0 => register_0 = input_value
@@ -107,7 +107,7 @@ primitive VirtualMachine
           | 3 => register_3 = input_value
           end
           
-        | OPCODE.const1() =>
+        | VMNucleoSet.load_constant_1() =>
           // Load constant 1 into destination register
           match destination_register
           | 0 => register_0 = 1
@@ -116,7 +116,7 @@ primitive VirtualMachine
           | 3 => register_3 = 1
           end
           
-        | OPCODE.const0() =>
+        | VMNucleoSet.load_constant_0() =>
           // Load constant 0 into destination register
           match destination_register
           | 0 => register_0 = 0
@@ -125,7 +125,7 @@ primitive VirtualMachine
           | 3 => register_3 = 0
           end
           
-        | OPCODE.dec() =>
+        | VMNucleoSet.decrement() =>
           // Decrement destination register by 1 (minimum 0)
           match destination_register
           | 0 => register_0 = if register_0 > 0 then register_0 - 1 else 0 end
@@ -134,7 +134,7 @@ primitive VirtualMachine
           | 3 => register_3 = if register_3 > 0 then register_3 - 1 else 0 end
           end
           
-        | OPCODE.double() =>
+        | VMNucleoSet.double_value() =>
           // Double (multiply by 2) the destination register - KEY INSTRUCTION!
           match destination_register
           | 0 => register_0 = register_0 * 2
@@ -143,7 +143,7 @@ primitive VirtualMachine
           | 3 => register_3 = register_3 * 2
           end
           
-        | OPCODE.loop() =>
+        | VMNucleoSet.loop_if_nonzero() =>
           // Loop: if source register > 0, decrement it and jump to destination instruction
           let loop_counter_value = _RegisterAccess.read_register(source_register, register_0, register_1, register_2, register_3)
           if loop_counter_value > 0 then
@@ -151,8 +151,8 @@ primitive VirtualMachine
             (register_0, register_1, register_2, register_3) = 
               _RegisterAccess.write_register(source_register, loop_counter_value - 1, register_0, register_1, register_2, register_3)
             
-            // Jump back to the destination instruction (if valid)
-            if destination_register.usize() < max_instructions then
+            // Jump back to the destination nucleo (if valid)
+            if destination_register.usize() < max_nucleos then
               program_counter = destination_register.usize()
               program_counter = program_counter - 1  // Will be incremented at end of loop
             end
@@ -167,18 +167,7 @@ primitive VirtualMachine
     // Return the final value in register 0 as the program result
     register_0
 
-// Helper primitives for cleaner code organization
-
-primitive _InstructionDecoder
-  """Helper for decoding and validating instruction bytes."""
-  
-  fun valid_opcode(raw_byte: U8): U8 =>
-    """Ensures opcode is within valid range (0-11)."""
-    raw_byte % 12  // 12 valid opcodes: 0 through 11
-  
-  fun valid_register(raw_byte: U8): U8 =>
-    """Ensures register index is within valid range (0-3)."""
-    raw_byte % 4  // 4 valid registers: 0, 1, 2, 3
+// Helper primitives for cleaner nucleo execution organization
 
 primitive _RegisterAccess
   """Helper for reading and writing register values."""

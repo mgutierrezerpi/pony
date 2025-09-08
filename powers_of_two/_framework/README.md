@@ -37,6 +37,15 @@ The main GA engine that:
 - Detects and responds to stagnation
 - Reports progress via ReportSink
 
+## Genetic Framework Concepts
+
+This framework implements the genetic approach defined in CLAUDE.md:
+
+- **Nucleos**: Atomic operations that serve as the basic building blocks (e.g., VM instructions like ADD, MOV, LOADN)
+- **Codons**: Functional sequences formed by combining nucleos to achieve specific behaviors
+- **Genomes**: Complete sequences of nucleos that combine into codons to solve problems
+- **Evolution**: The process of evolving nucleos and their combinations into effective codons
+
 ## Features
 
 - **Adaptive Diversity**: Automatically adjusts mutation rates and introduces random individuals when evolution stagnates
@@ -45,6 +54,7 @@ The main GA engine that:
 - **Parallel Evaluation**: Supports concurrent fitness evaluation
 - **Persistence**: Save and load genomes to/from disk
 - **Progress Reporting**: Real-time monitoring of evolution progress
+- **Nucleo-Aware Operations**: Genetic operators respect nucleo boundaries to maintain codon integrity
 
 ## Usage Example
 
@@ -77,7 +87,7 @@ GenericGAController[MyProblem val, MyGenomeOps val, MyConfig val]
 
 ## Included Examples
 
-- **Fibonacci Sequence**: Evolve VM programs to compute Fibonacci numbers (see `core/fibonacci_domain.pony`)
+- **Fibonacci Sequence**: Evolve VM programs using nucleos (atomic operations) to compute Fibonacci numbers (see `core/fibonacci_domain.pony`)
 - **Text Matching**: Evolve strings to match a target text (see `examples/text_matching.pony`)
 
 ## Extending the Framework

@@ -1,5 +1,6 @@
 // Core interfaces for the Genetic Algorithm framework
 // These contracts define how different components interact in the GA system
+// Supports the nucleo/codon genetic framework as defined in CLAUDE.md
 
 use "random"
 
@@ -9,18 +10,20 @@ trait ProblemDomainDefinition
   
   Each problem domain (like powers of 2, Fibonacci, sentiment analysis) must implement
   this interface to specify:
-  - How genomes are structured and sized
+  - How genomes are structured (sequences of nucleos)
+  - How nucleos combine into functional codons
   - How fitness is calculated
   - How results are displayed
   
-  This abstraction allows the same GA framework to solve different types of problems.
+  This abstraction allows the same GA framework to solve different types of problems
+  while respecting the nucleo/codon genetic structure.
   """
   
   fun genome_byte_count(): USize
-    """Returns the size in bytes of each genome (individual solution)."""
+    """Returns the size in bytes of each genome (sequence of nucleos)."""
   
   fun create_random_genome(random_number_generator: Rand): Array[U8] val
-    """Generates a completely random genome as a starting point for evolution."""
+    """Generates a completely random genome (nucleo sequence) as a starting point for evolution."""
   
   fun calculate_fitness(candidate_solution: Array[U8] val): F64
     """
@@ -41,30 +44,33 @@ trait GeneticOperationProvider
   """
   Interface for genetic operators that modify genomes during evolution.
   
-  These operations simulate biological processes:
-  - Mutation: Random changes to introduce variety
-  - Crossover: Combining traits from two parents
-  - Heavy mutation: Large changes to escape local optima
+  These operations simulate biological processes while respecting nucleo/codon structure:
+  - Mutation: Random changes to nucleos to introduce variety
+  - Crossover: Combining nucleo sequences from two parents
+  - Heavy mutation: Large changes to escape local optima (may break codon structures)
   
-  Different problems may need specialized genetic operations.
+  Different problems may need specialized genetic operations that understand their
+  specific nucleo organization and codon formation rules.
   """
   
   fun apply_mutation(random_generator: Rand, parent_genome: Array[U8] val): Array[U8] val
     """
     Creates a slightly modified copy of a genome.
-    Introduces small random changes to maintain population diversity.
+    Introduces small random changes to nucleos while trying to preserve codon integrity.
     """
   
   fun apply_heavy_mutation(random_generator: Rand, parent_genome: Array[U8] val): Array[U8] val
     """
     Creates a heavily modified copy of a genome.
-    Used when population becomes too similar (stagnation).
+    Used when population becomes too similar (stagnation). May break existing
+    codon structures but enables exploration of new nucleo combinations.
     """
   
   fun perform_crossover(random_generator: Rand, parent_a: Array[U8] val, parent_b: Array[U8] val): (Array[U8] val, Array[U8] val)
     """
     Combines two parent genomes to create two offspring.
-    Simulates sexual reproduction by mixing genetic material.
+    Simulates sexual reproduction by mixing nucleo sequences while trying
+    to preserve functional codons from both parents.
     Returns a tuple of (offspring_1, offspring_2).
     """
 

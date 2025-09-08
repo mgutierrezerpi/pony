@@ -1,5 +1,5 @@
 // Domain implementation for powers of 2 problem
-// Evolves VM programs to compute 2^n
+// Evolves VM programs using nucleos (atomic operations) to compute 2^n
 
 use "random"
 use "collections"
@@ -30,18 +30,19 @@ primitive PowersDomain is ProblemDomain
   Problem domain for evolving VM programs that compute powers of 2.
   
   The goal is to evolve a genome (VM program) that can correctly compute 2^n
-  for any input n. The genome consists of 16 VM instructions, each taking 3 bytes.
+  for any input n. The genome consists of 16 nucleos (atomic operations), each taking 3 bytes.
+  Nucleos combine into codons (functional sequences) that achieve the computation.
   
   Test cases range from 2^0=1 to 2^7=128.
   """
   
   // Configuration constants
-  fun genome_size(): USize => 48  // 16 instructions × 3 bytes per instruction
+  fun genome_size(): USize => 48  // 16 nucleos × 3 bytes per nucleo
   
   fun random_genome(random_generator: Rand): Array[U8] val =>
     """
     Creates a completely random genome as starting point for evolution.
-    Each byte is randomly generated, representing VM opcodes and operands.
+    Each byte is randomly generated, representing nucleo opcodes and operands.
     """
     recover val
       let genome_bytes = Array[U8](genome_size())
@@ -147,17 +148,18 @@ primitive PowersDomain is ProblemDomain
 
 primitive PowersGenomeOperations is GenomeOperations
   """
-  Genetic operations (mutation, crossover) specialized for VM instruction genomes.
+  Genetic operations (mutation, crossover) specialized for VM nucleo genomes.
   
-  These operations are aware of the VM instruction format:
-  - Each instruction is 3 bytes: [opcode, destination_register, source_register]
-  - There are 9 different opcodes and 4 registers
+  These operations are aware of the VM nucleo format:
+  - Each nucleo is 3 bytes: [opcode, destination_register, source_register]
+  - There are 12 different nucleo types and 4 registers
+  - Mutations respect nucleo boundaries to maintain codon integrity
   """
   
   fun mutate(random_generator: Rand, parent_genome: Array[U8] val): Array[U8] val =>
     """
-    Standard mutation: modifies 1-2 random instructions in the genome.
-    Respects instruction boundaries and valid opcode/register ranges.
+    Standard mutation: modifies 1-2 random nucleos in the genome.
+    Respects nucleo boundaries and valid opcode/register ranges to preserve codon structure.
     """
     recover val
       // Create a copy of the parent genome
@@ -166,25 +168,25 @@ primitive PowersGenomeOperations is GenomeOperations
         mutated_genome.push(byte_value)
       end
       
-      // Decide how many instructions to mutate (1 or 2)
+      // Decide how many nucleos to mutate (1 or 2)
       let num_mutations = 1 + (random_generator.next().usize() % 2)
       
       for mutation_count in Range[USize](0, num_mutations) do
         try
-          // Pick a random instruction to mutate (0-15)
-          let instruction_index = random_generator.next().usize() % 16
-          let instruction_start_byte = instruction_index * 3
+          // Pick a random nucleo to mutate (0-15)
+          let nucleo_index = random_generator.next().usize() % 16
+          let nucleo_start_byte = nucleo_index * 3
           
-          // Decide what part of the instruction to mutate (opcode or operands)
+          // Decide what part of the nucleo to mutate (opcode or operands)
           let mutation_target = random_generator.next() % 3
           
           if mutation_target == 0 then
-            // Mutate the opcode (first byte of instruction)
-            mutated_genome(instruction_start_byte)? = random_generator.next().u8() % 12  // 12 valid opcodes
+            // Mutate the nucleo opcode (first byte)
+            mutated_genome(nucleo_start_byte)? = random_generator.next().u8() % 12  // 12 valid nucleos
           else
             // Mutate one of the operand registers
             let operand_byte_offset = mutation_target.usize()
-            mutated_genome(instruction_start_byte + operand_byte_offset)? = random_generator.next().u8() % 4  // 4 valid registers
+            mutated_genome(nucleo_start_byte + operand_byte_offset)? = random_generator.next().u8() % 4  // 4 valid registers
           end
         end
       end
@@ -193,8 +195,9 @@ primitive PowersGenomeOperations is GenomeOperations
   
   fun heavy_mutate(random_generator: Rand, parent_genome: Array[U8] val): Array[U8] val =>
     """
-    Heavy mutation: randomizes 5-8 complete instructions for escaping local optima.
+    Heavy mutation: randomizes 5-8 complete nucleos for escaping local optima.
     Used when the population becomes too similar and needs diversity.
+    May break existing codon structures but enables exploration of new solutions.
     """
     recover val
       let heavily_mutated_genome = Array[U8](parent_genome.size())
@@ -202,18 +205,18 @@ primitive PowersGenomeOperations is GenomeOperations
         heavily_mutated_genome.push(byte_value)
       end
       
-      // Mutate many instructions (5-8)
+      // Mutate many nucleos (5-8)
       let num_heavy_mutations = 5 + (random_generator.next().usize() % 4)
       
       for mutation_count in Range[USize](0, num_heavy_mutations) do
         try
-          let instruction_to_randomize = random_generator.next().usize() % 16
-          let instruction_byte_start = instruction_to_randomize * 3
+          let nucleo_to_randomize = random_generator.next().usize() % 16
+          let nucleo_byte_start = nucleo_to_randomize * 3
           
-          // Completely randomize all 3 bytes of the instruction
-          heavily_mutated_genome(instruction_byte_start)? = random_generator.next().u8() % 12     // 12 opcodes
-          heavily_mutated_genome(instruction_byte_start + 1)? = random_generator.next().u8() % 4  // destination register
-          heavily_mutated_genome(instruction_byte_start + 2)? = random_generator.next().u8() % 4  // source register
+          // Completely randomize all 3 bytes of the nucleo
+          heavily_mutated_genome(nucleo_byte_start)? = random_generator.next().u8() % 12     // 12 nucleo types
+          heavily_mutated_genome(nucleo_byte_start + 1)? = random_generator.next().u8() % 4  // destination register
+          heavily_mutated_genome(nucleo_byte_start + 2)? = random_generator.next().u8() % 4  // source register
         end
       end
       heavily_mutated_genome
@@ -221,18 +224,19 @@ primitive PowersGenomeOperations is GenomeOperations
   
   fun crossover(random_generator: Rand, parent_a: Array[U8] val, parent_b: Array[U8] val): (Array[U8] val, Array[U8] val) =>
     """
-    Two-point crossover that respects instruction boundaries.
-    Swaps a contiguous block of instructions between two parent genomes.
+    Two-point crossover that respects nucleo boundaries.
+    Swaps a contiguous block of nucleos between two parent genomes.
+    This preserves codon structures within the swapped region.
     """
-    // Choose two random instruction positions for crossover points
+    // Choose two random nucleo positions for crossover points
     let crossover_point_1 = random_generator.next().usize() % 16
     let crossover_point_2 = random_generator.next().usize() % 16
-    let crossover_start_instruction = if crossover_point_1 < crossover_point_2 then crossover_point_1 else crossover_point_2 end
-    let crossover_end_instruction = if crossover_point_1 < crossover_point_2 then crossover_point_2 else crossover_point_1 end
+    let crossover_start_nucleo = if crossover_point_1 < crossover_point_2 then crossover_point_1 else crossover_point_2 end
+    let crossover_end_nucleo = if crossover_point_1 < crossover_point_2 then crossover_point_2 else crossover_point_1 end
     
-    // Convert instruction indices to byte positions
-    let crossover_start_byte = crossover_start_instruction * 3
-    let crossover_end_byte = crossover_end_instruction * 3
+    // Convert nucleo indices to byte positions
+    let crossover_start_byte = crossover_start_nucleo * 3
+    let crossover_end_byte = crossover_end_nucleo * 3
     
     // Create first offspring
     let offspring_1 = recover val

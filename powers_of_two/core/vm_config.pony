@@ -1,26 +1,26 @@
-// Virtual Machine configuration and instruction set
-// Defines the opcodes and VM architecture for powers of 2 evolution
+// Virtual Machine configuration and nucleo instruction set
+// Defines the nucleos (atomic operations) and VM architecture for powers of 2 evolution
 
-primitive VMInstructionSet
+primitive VMNucleoSet
   """
-  Defines all available VM opcodes and their numeric values.
+  Defines all available VM nucleos (atomic operations) and their numeric values.
   
-  The VM has 12 different instructions that genomes can use:
-  - NOP: No operation (do nothing)
-  - ZERO: Set register to 0  
-  - INC: Increment register by 1
-  - MOV: Copy value between registers
-  - ADD: Add one register to another
-  - SWAP: Exchange values between two registers
-  - LOADN: Load the input value n into a register
-  - CONST1: Load constant 1 into a register
-  - CONST0: Load constant 0 into a register
-  - DEC: Decrement register by 1 (enables counting down)
-  - DOUBLE: Multiply register by 2 (key for powers of 2!)
-  - LOOP: If src register > 0, decrement it and jump back to dst instruction
+  The VM has 12 different nucleos that genomes can use:
+  - NOP: No operation nucleo (do nothing)
+  - ZERO: Zero register nucleo (set register to 0)  
+  - INC: Increment nucleo (increment register by 1)
+  - MOV: Move nucleo (copy value between registers)
+  - ADD: Addition nucleo (add one register to another)
+  - SWAP: Swap nucleo (exchange values between two registers)
+  - LOADN: Load input nucleo (load the input value n into a register)
+  - CONST1: Load constant 1 nucleo (load constant 1 into a register)
+  - CONST0: Load constant 0 nucleo (load constant 0 into a register)
+  - DEC: Decrement nucleo (decrement register by 1, enables counting down)
+  - DOUBLE: Double nucleo (multiply register by 2, key for powers of 2!)
+  - LOOP: Loop control nucleo (if src register > 0, decrement it and jump back to dst instruction)
   """
   
-  // Instruction opcodes (0-11)
+  // Nucleo opcodes (0-11) - each represents an atomic operation
   fun no_operation(): U8 => 0      // NOP: Do nothing
   fun zero_register(): U8 => 1     // ZERO dst         -> R[dst] = 0
   fun increment(): U8 => 2         // INC  dst         -> R[dst] = R[dst] + 1
@@ -40,19 +40,21 @@ primitive VMArchitecture
   
   Architecture specifications:
   - 4 registers (R0, R1, R2, R3) for data storage
-  - 16 instructions maximum per program
-  - 3 bytes per instruction (opcode + 2 operands)
-  - Total genome size: 16 × 3 = 48 bytes
+  - 16 nucleos maximum per genome (each program is a sequence of nucleos)
+  - 3 bytes per nucleo (opcode + 2 operands)
+  - Total genome size: 16 nucleos × 3 bytes = 48 bytes
+  
+  Codons are formed by combining nucleos into functional sequences.
   """
   
   fun register_count(): U8 => 4           // Number of available registers (R0-R3)
-  fun instructions_per_program(): USize => 16    // Maximum instructions in a genome
-  fun bytes_per_instruction(): USize => 3        // [opcode, destination, source]
-  fun total_genome_bytes(): USize => instructions_per_program() * bytes_per_instruction()
+  fun nucleos_per_genome(): USize => 16    // Maximum nucleos in a genome
+  fun bytes_per_nucleo(): USize => 3        // [opcode, destination, source]
+  fun total_genome_bytes(): USize => nucleos_per_genome() * bytes_per_nucleo()
 
-primitive InstructionValidator
+primitive NucleoValidator
   """
-  Utilities to ensure instruction bytes are within valid ranges.
+  Utilities to ensure nucleo bytes are within valid ranges.
   Prevents invalid opcodes or register references that could crash the VM.
   """
   
@@ -60,35 +62,8 @@ primitive InstructionValidator
     """Ensures register index is valid (0-3)."""
     raw_register % VMArchitecture.register_count()
   
-  fun clamp_opcode(raw_opcode: U8): U8 =>
-    """Ensures opcode is valid (0-11)."""
-    let total_opcodes: U8 = 12
-    raw_opcode % total_opcodes
+  fun clamp_nucleo_opcode(raw_opcode: U8): U8 =>
+    """Ensures nucleo opcode is valid (0-11)."""
+    let total_nucleos: U8 = 12
+    raw_opcode % total_nucleos
 
-// Legacy aliases for backwards compatibility with existing code
-primitive OPCODE
-  """Legacy aliases for instruction opcodes to maintain compatibility."""
-  fun nop(): U8 => VMInstructionSet.no_operation()
-  fun zero(): U8 => VMInstructionSet.zero_register()
-  fun inc(): U8 => VMInstructionSet.increment()
-  fun mov(): U8 => VMInstructionSet.move_register()
-  fun add(): U8 => VMInstructionSet.add_registers()
-  fun swap(): U8 => VMInstructionSet.swap_registers()
-  fun loadn(): U8 => VMInstructionSet.load_input()
-  fun const1(): U8 => VMInstructionSet.load_constant_1()
-  fun const0(): U8 => VMInstructionSet.load_constant_0()
-  fun dec(): U8 => VMInstructionSet.decrement()
-  fun double(): U8 => VMInstructionSet.double_value()
-  fun loop(): U8 => VMInstructionSet.loop_if_nonzero()
-
-primitive VMConfig
-  """Legacy aliases for VM configuration to maintain compatibility."""
-  fun reg_count(): U8 => VMArchitecture.register_count()
-  fun prog_len(): USize => VMArchitecture.instructions_per_program()
-  fun instr_bytes(): USize => VMArchitecture.bytes_per_instruction()
-  fun genome_len(): USize => VMArchitecture.total_genome_bytes()
-
-primitive _Clamp
-  """Legacy validator functions to maintain compatibility."""
-  fun reg(register_byte: U8): U8 => InstructionValidator.clamp_register_index(register_byte)
-  fun opc(opcode_byte: U8): U8 => InstructionValidator.clamp_opcode(opcode_byte)

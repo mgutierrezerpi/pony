@@ -183,7 +183,7 @@ primitive EvolutionDataArchiver
       summary_builder.append(timestamp.string())
       summary_builder.append("\n\ngenome_configuration:\n")
       summary_builder.append("  genome_size_bytes: 48\n")
-      summary_builder.append("  vm_instructions_per_genome: 16\n")
+      summary_builder.append("  vm_nucleos_per_genome: 16\n")
       summary_builder.append("  vm_registers_available: 4\n")
       summary_builder.append("\nproblem_domain:\n")
       summary_builder.append("  name: \"Powers of 2\"\n")

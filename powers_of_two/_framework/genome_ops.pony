@@ -1,5 +1,6 @@
 // Generic genome operations for byte-array genomes
-// Can be extended or replaced for different genome representations
+// Can be extended or replaced for different nucleo/codon representations
+// Standard operations that work with any nucleo-based genome structure
 
 use "random"
 use "collections"
@@ -7,11 +8,15 @@ use "collections"
 primitive ByteGenomeOps is GenomeOperations
   """
   Standard genetic operations for byte-array genomes.
+  Generic operations that work with any nucleo-based genome without
+  specific knowledge of nucleo boundaries or codon structure.
   """
   
   fun mutate(rng: Rand, genome: Array[U8] val): Array[U8] val =>
     """
     Standard mutation - changes a small number of bytes.
+    Note: This generic mutation doesn't respect nucleo boundaries.
+    Domain-specific implementations should override for codon-aware mutations.
     """
     recover val
       let arr = Array[U8](genome.size())
@@ -33,6 +38,8 @@ primitive ByteGenomeOps is GenomeOperations
   fun heavy_mutate(rng: Rand, genome: Array[U8] val): Array[U8] val =>
     """
     Heavy mutation - changes many positions for escaping local optima.
+    Note: This generic mutation may break codon structures.
+    Use for exploration when codon preservation is less important.
     """
     recover val
       let arr = Array[U8](genome.size())
@@ -54,6 +61,8 @@ primitive ByteGenomeOps is GenomeOperations
   fun crossover(rng: Rand, a: Array[U8] val, b: Array[U8] val): (Array[U8] val, Array[U8] val) =>
     """
     Two-point crossover for byte arrays.
+    Note: This generic crossover doesn't respect nucleo boundaries.
+    Domain-specific implementations should align crossover points with nucleos.
     """
     let size = a.size().min(b.size())
     let p1 = rng.next().usize() % size
