@@ -7,7 +7,7 @@ use "random"
 use "./core"
 use "./_framework"
 
-actor \nodoc\ Main is TestList
+actor \nodoc\ TestMain is TestList
   new create(env: Env) => PonyTest(env, this)
   
   new make() => None
