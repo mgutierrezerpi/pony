@@ -103,6 +103,9 @@ Tests genomes on both fixed and random test cases:
 
 # Clear saved evolution data
 ./pony run powers_of_two clear
+
+# Generate evolution summary report
+./pony run powers_of_two summary
 ```
 
 ## Evolution Results

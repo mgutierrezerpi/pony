@@ -19,6 +19,7 @@ actor Main
       | "train" => _train(env)
       | "resume" => _resume(env, args)
       | "clear" => _clear(env)
+      | "summary" => _summary(env)
       | "test" => _test(env, args)
       else
         // Check if it's a number (compute 2^n)
@@ -38,6 +39,7 @@ actor Main
     env.out.print("  powers_of_two train              - Train from scratch")
     env.out.print("  powers_of_two resume [gens]      - Resume from last saved generation")
     env.out.print("  powers_of_two clear              - Clear all saved generations")
+    env.out.print("  powers_of_two summary            - Generate evolution summary report")
     env.out.print("  powers_of_two test <n>           - Test VM with input n")
     env.out.print("  powers_of_two <n>                - Compute 2^n using best trained genome")
   
@@ -87,6 +89,37 @@ actor Main
     env.out.print("Clearing all saved generations...")
     let deleted = GenomePersistence.clear_all_generations(env, "powers_of_two/bin/")
     env.out.print("Deleted " + deleted.string() + " generation files")
+  
+  fun _summary(env: Env) =>
+    env.out.print("Generating evolution summary...")
+    
+    // Find the latest generation and best fitness
+    (let latest_gen, let best_genome) = GenomePersistence.find_latest_generation(env, "powers_of_two/bin/")
+    
+    match best_genome
+    | let genome: Array[U8] val =>
+      let best_fitness = PowersDomain.evaluate(genome)
+      
+      // Create evolution summary in main project directory
+      let success = EvolutionDataArchiver.create_evolution_summary_report(
+        env, 
+        "powers_of_two/",  // Save in main project directory instead of bin/
+        latest_gen, 
+        best_fitness, 
+        latest_gen
+      )
+      
+      if success then
+        env.out.print("✓ Evolution summary saved to powers_of_two/evolution_summary.yaml")
+        env.out.print("Latest generation: " + latest_gen.string())
+        env.out.print("Best fitness: " + (best_fitness * 100).string() + "%")
+        env.out.print("Best solution: " + PowersDomain.display_result(genome))
+      else
+        env.out.print("✗ Failed to save evolution summary")
+      end
+    | None =>
+      env.out.print("No saved genomes found. Run training first.")
+    end
   
   fun _test(env: Env, args: Array[String] val) =>
     try
