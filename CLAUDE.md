@@ -31,6 +31,38 @@ For projects with test files (e.g., `test_vm.pony`):
 
 This compiles and runs the test suite, which includes unit tests and validation with trained genomes.
 
+## Genetic Framework - Vision
+
+### 1. DEFINE FITNESS
+Fitness is measured as % of confidence based on a set of fixed and variable test case results. Before starting to train a genome, define the expectations to hold it against. This involves:
+- Creating a comprehensive test suite with known inputs/outputs
+- Defining success metrics (accuracy, RMSE, classification rate)
+- Establishing minimum acceptable performance thresholds
+
+### 2. DIVIDE & CONQUER GENES
+Define different gene bucketing variations through responsibility splitting - breaking complex tasks into smaller, manageable components. Different splitting strategies can yield different performance:
+- **Single responsibility**: One gene type for the entire task
+- **Functional separation**: Different genes for different operations (e.g., arithmetic vs control flow)
+- **Hierarchical**: Genes that coordinate other genes
+- Try multiple alternatives to find optimal gene organization
+
+### 3. DEFINE EACH GENE NUCLEO
+A NUCLEO is an atomic operation that can be:
+- **Stand-alone**: Complete functional unit by itself
+- **Part of a CODON**: Combined with other nucleos to form small functional units
+
+Example: In Fibonacci, nucleos are VM instructions (ADD, MOV, LOADN) that combine into codons (sequences performing additions and register management) to achieve the complete algorithm.
+
+### 4. EVOLUTION CYCLE
+The core loop powered by Pony actors (parallel execution is mandatory):
+1. **Execute**: Run genomes against test cases
+2. **Measure**: Calculate fitness scores
+3. **Select**: Choose best performers for reproduction
+4. **Reproduce**: Create next generation via crossover/mutation
+5. **Persist**: Save `.yaml` files (performance stats, gene composition) and `.bytes` files (genome binary data)
+
+This cycle continues until target fitness is achieved or generation limit is reached.
+
 ## Project Architecture
 
 ### Core Framework Structure
