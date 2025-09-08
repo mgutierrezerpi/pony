@@ -12,13 +12,17 @@ Commands:
   run <project> [args]    - Run the compiled project with optional arguments
   test <project>          - Run unit tests for the project
 
+Available Projects:
+  fibonacci              - Evolve VM programs to compute Fibonacci sequences
+  sentiment              - Multilingual emotion detection using neural networks
+
 Examples:
   ./pony help
   ./pony compile fibonacci
-  ./pony run fibonacci
+  ./pony compile sentiment
   ./pony run fibonacci train
-  ./pony run fibonacci test 100
-  ./pony run fibonacci resume
+  ./pony run sentiment analyze "I'm so happy today!"
+  ./pony run sentiment analyze "Me siento triste"
   ./pony test fibonacci
 EOF
 }
