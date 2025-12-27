@@ -1,4 +1,5 @@
 **/bin/
 .claude
 .DS_Store
+**/evolution_summary.yaml
 

@@ -13,16 +13,20 @@ Commands:
   test <project>          - Run unit tests for the project
 
 Available Projects:
-  fibonacci              - Evolve VM programs to compute Fibonacci sequences
-  sentiment              - Multilingual emotion detection using neural networks
+  fibonacci                 - Evolve VM programs to compute Fibonacci sequences
+  sentiment                 - Multilingual emotion detection using neural networks
+  powers_of_two             - Evolve VM programs to compute powers of 2
+  powers_of_two_tutorial    - Tutorial: 3 complexity levels of the GA framework
 
 Examples:
   ./pony help
   ./pony compile fibonacci
-  ./pony compile sentiment
+  ./pony compile powers_of_two
+  ./pony compile powers_of_two_tutorial
   ./pony run fibonacci train
-  ./pony run sentiment analyze "I'm so happy today!"
-  ./pony run sentiment analyze "Me siento triste"
+  ./pony run powers_of_two train
+  ./pony run powers_of_two 5
+  ./pony run powers_of_two_tutorial simple
   ./pony test fibonacci
 EOF
 }
@@ -94,22 +98,22 @@ case "$COMMAND" in
         echo "Running tests for $PROJECT..."
         mkdir -p "$PROJECT/bin"
         
-        # Check if we have a test_vm.pony file
-        if [ -f "$PROJECT/test_vm.pony" ]; then
+        # Check if we have test files in test directory
+        if [ -f "$PROJECT/test/test_vm.pony" ] && [ -f "$PROJECT/test/test_main.pony" ]; then
             echo "Compiling and running test suite..."
             
             # Create a temporary test directory
             mkdir -p "$PROJECT/test_build"
-            cp "$PROJECT"/*.pony "$PROJECT/test_build/"
+            
+            # Copy test files and dependencies
+            cp "$PROJECT/test/test_vm.pony" "$PROJECT/test_build/"
+            cp "$PROJECT/test/test_main.pony" "$PROJECT/test_build/main.pony"  # Use test_main as main
             
             # Copy the core and _framework directories
             cp -r "$PROJECT/core" "$PROJECT/test_build/"
             cp -r "$PROJECT/_framework" "$PROJECT/test_build/"
             
-            # Make test_vm.pony the main file by removing main.pony from test build
-            rm "$PROJECT/test_build/main.pony" 2>/dev/null || true
-            
-            # Compile from the test build directory
+            # Compile the test suite
             ponyc "$PROJECT/test_build" --output "$PROJECT/bin" --bin-name test_runner
             
             # Clean up
@@ -123,7 +127,7 @@ case "$COMMAND" in
                 exit 1
             fi
         else
-            echo "No test_vm.pony found"
+            echo "No test files found in test/ directory"
             exit 1
         fi
         ;;
