@@ -11,6 +11,7 @@ Commands:
   compile <project>       - Compile the project to project/bin/
   run <project> [args]    - Run the compiled project with optional arguments
   test <project>          - Run unit tests for the project
+  disassemble <project>   - Disassemble the best genome (shows nucleos and execution trace)
 
 Available Projects:
   fibonacci                 - Evolve VM programs to compute Fibonacci sequences
@@ -28,6 +29,7 @@ Examples:
   ./pony run powers_of_two 5
   ./pony run powers_of_two_tutorial simple
   ./pony test fibonacci
+  ./pony disassemble powers_of_two
 EOF
 }
 
@@ -94,31 +96,31 @@ case "$COMMAND" in
             echo "Error: Project directory '$PROJECT' does not exist"
             exit 1
         fi
-        
+
         echo "Running tests for $PROJECT..."
         mkdir -p "$PROJECT/bin"
-        
+
         # Check if we have test files in test directory
         if [ -f "$PROJECT/test/test_vm.pony" ] && [ -f "$PROJECT/test/test_main.pony" ]; then
             echo "Compiling and running test suite..."
-            
+
             # Create a temporary test directory
             mkdir -p "$PROJECT/test_build"
-            
+
             # Copy test files and dependencies
             cp "$PROJECT/test/test_vm.pony" "$PROJECT/test_build/"
             cp "$PROJECT/test/test_main.pony" "$PROJECT/test_build/main.pony"  # Use test_main as main
-            
+
             # Copy the core and _framework directories
             cp -r "$PROJECT/core" "$PROJECT/test_build/"
             cp -r "$PROJECT/_framework" "$PROJECT/test_build/"
-            
+
             # Compile the test suite
             ponyc "$PROJECT/test_build" --output "$PROJECT/bin" --bin-name test_runner
-            
+
             # Clean up
             rm -rf "$PROJECT/test_build"
-            
+
             if [ $? -eq 0 ] && [ -f "$PROJECT/bin/test_runner" ]; then
                 echo "Running VM tests..."
                 "./$PROJECT/bin/test_runner"
@@ -131,7 +133,20 @@ case "$COMMAND" in
             exit 1
         fi
         ;;
-        
+
+    "disassemble")
+        EXECUTABLE="$PROJECT/bin/$PROJECT"
+
+        if [ ! -f "$EXECUTABLE" ]; then
+            echo "Error: Executable '$EXECUTABLE' not found"
+            echo "Try running: $0 compile $PROJECT"
+            exit 1
+        fi
+
+        echo "Disassembling best genome from $PROJECT..."
+        "./$EXECUTABLE" disassemble
+        ;;
+
     *)
         echo "Error: Unknown command '$COMMAND'"
         show_usage

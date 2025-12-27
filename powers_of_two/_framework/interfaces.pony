@@ -172,3 +172,19 @@ trait GAConfiguration
   fun mutation_rate(): F64
   fun crossover_rate(): F64
   fun elitism_count(): USize
+
+trait GenomeDisassembler
+  """
+  Interface for disassembling genomes into human-readable format.
+
+  Allows each problem domain to provide custom visualization of genome structure,
+  showing how nucleos form codons and how the program/solution works internally.
+  """
+
+  fun disassemble_genome(env: Env, genome: Array[U8] val, fitness: F64)
+    """
+    Display a human-readable disassembly of the genome showing:
+    - Individual nucleos and their decoded meaning
+    - How nucleos combine into functional codons
+    - Execution trace or test results
+    """
