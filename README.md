@@ -66,3 +66,30 @@ project_name/
 
 - Pony compiler (ponyc) 0.59.0 or later
 - macOS/Linux environment
+
+## Future Improvements
+
+### Advanced Fine-tuning Capabilities
+
+The genetic algorithm framework could be enhanced with the following fine-tuning features:
+
+1. **Seed Genome Support**
+   - Start evolution from a specific pre-trained genome instead of random initialization
+   - Enable transfer learning by loading a genome trained on one task as starting point for another
+   - Useful for domain adaptation and specialized fine-tuning scenarios
+
+2. **Learning Rate Decay**
+   - Automatically reduce mutation rate over generations as solutions converge
+   - Implement adaptive mutation schedules (e.g., exponential decay, step decay)
+   - Balance exploration (early generations) vs exploitation (later generations)
+
+3. **Adaptive Parameters**
+   - Auto-adjust GA configuration based on convergence metrics
+   - Dynamic population sizing based on diversity measurements
+   - Adaptive tournament selection pressure based on fitness plateau detection
+
+4. **Domain Transfer**
+   - Use trained genomes from one problem as initialization for related problems
+   - Partial genome freezing (preserve some weights while evolving others)
+   - Multi-stage training with different evolutionary strategies per phase
+   - Cross-domain knowledge transfer between similar tasks
