@@ -21,6 +21,7 @@ actor Main
       | "clear" => _clear(env)
       | "summary" => _summary(env)
       | "test" => _test(env, args)
+      | "disassemble" => _disassemble(env)
       else
         // Check if it's a number (compute 2^n)
         try
@@ -41,6 +42,7 @@ actor Main
     env.out.print("  powers_of_two clear              - Clear all saved generations")
     env.out.print("  powers_of_two summary            - Generate evolution summary report")
     env.out.print("  powers_of_two test <n>           - Test VM with input n")
+    env.out.print("  powers_of_two disassemble        - Show VM instructions of best genome")
     env.out.print("  powers_of_two <n>                - Compute 2^n using best trained genome")
   
   fun _train(env: Env) =>
@@ -168,6 +170,19 @@ actor Main
       env.out.print("")
       env.out.print("Genome fitness: " + (fitness * 100).string() + "%")
       env.out.print("Test cases passed: " + (fitness * 8).string() + " / 8")
+    | None =>
+      env.out.print("No trained genome found. Run 'powers_of_two train' first.")
+    end
+
+  fun _disassemble(env: Env) =>
+    // Load the best genome
+    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "powers_of_two/bin/")
+
+    match genome
+    | let g: Array[U8] val =>
+      env.out.print("Generation " + gen.string())
+      env.out.print("")
+      PowersDisassembler.disassemble_genome(env, g, PowersDomain.evaluate(g))
     | None =>
       env.out.print("No trained genome found. Run 'powers_of_two train' first.")
     end
