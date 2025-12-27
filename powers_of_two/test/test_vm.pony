@@ -5,7 +5,7 @@ use "pony_test"
 use "collections"
 use "random"
 use "./core"
-use "./_framework"
+use "../_framework"
 
 // Test runner that works alongside main.pony without conflict
 actor \nodoc\ TestRunner is TestList

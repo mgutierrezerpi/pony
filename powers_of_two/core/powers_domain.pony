@@ -3,7 +3,7 @@
 
 use "random"
 use "collections"
-use "../_framework"
+use "../../_framework"
 
 // Mathematical helper for computing powers of 2
 primitive PowersOfTwoCalculator

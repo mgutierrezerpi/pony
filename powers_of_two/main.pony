@@ -3,7 +3,7 @@
 use "random"
 use "time"
 use "files"
-use "_framework"
+use "../_framework"
 use "core"
 
 actor Main

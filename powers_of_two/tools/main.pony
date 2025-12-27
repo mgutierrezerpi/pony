@@ -3,7 +3,7 @@
 
 use "files"
 use "../core"
-use "../_framework"
+use "../../_framework"
 
 actor Main
   new create(env: Env) =>
