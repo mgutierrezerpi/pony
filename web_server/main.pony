@@ -11,20 +11,34 @@ actor Main
   new create(env: Env) =>
     let auth = TCPListenAuth(env.root)
 
-    // Load sentiment resources (done here to pass to server)
-    let english_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/English-NRC-EmoLex.txt")
-    let spanish_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
-    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "sentiment_analysis/bin/")
+    // Load configuration from environment variables with defaults
+    let host = try env.vars("HOST")? else "127.0.0.1" end
+    let port = try env.vars("PORT")? else "8080" end
+    let english_lex_path = try env.vars("ENGLISH_LEXICON")? else "sentiment_analysis/data/English-NRC-EmoLex.txt" end
+    let spanish_lex_path = try env.vars("SPANISH_LEXICON")? else "sentiment_analysis/data/Spanish-NRC-EmoLex.txt" end
+    let model_path = try env.vars("MODEL_PATH")? else "sentiment_analysis/bin/" end
+
+    env.out.print("=== Configuration ===")
+    env.out.print("Host: " + host)
+    env.out.print("Port: " + port)
+    env.out.print("Model: " + model_path)
+    env.out.print("")
+
+    // Load sentiment resources
+    let english_lex = NRCLexiconLoader.load_lexicon(env, english_lex_path)
+    let spanish_lex = NRCLexiconLoader.load_lexicon(env, spanish_lex_path)
+    (let gen, let genome) = GenomePersistence.find_latest_generation(env, model_path)
 
     match genome
     | let g: Array[U8] val =>
       env.out.print("✓ Loaded sentiment analysis model (generation " + gen.string() + ")")
     | None =>
-      env.out.print("⚠ Warning: No trained sentiment model found")
+      env.out.print("⚠ Warning: No trained sentiment model found at " + model_path)
     end
 
-    TCPListener(auth, recover iso WebServer(env, genome, english_lex, spanish_lex) end, "127.0.0.1", "8080")
-    env.out.print("🚀 Web server started on http://127.0.0.1:8080")
+    TCPListener(auth, recover iso WebServer(env, genome, english_lex, spanish_lex) end, host, port)
+    env.out.print("")
+    env.out.print("🚀 Web server started on http://" + host + ":" + port)
     env.out.print("")
     env.out.print("Available endpoints:")
     env.out.print("  POST /sentiment_analysis - Analyze sentiment of text")
