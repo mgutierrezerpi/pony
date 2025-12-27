@@ -13,19 +13,20 @@ Commands:
   test <project>          - Run unit tests for the project
 
 Available Projects:
-  fibonacci              - Evolve VM programs to compute Fibonacci sequences
-  sentiment              - Multilingual emotion detection using neural networks
-  powers_of_two          - Evolve VM programs to compute powers of 2
+  fibonacci                 - Evolve VM programs to compute Fibonacci sequences
+  sentiment                 - Multilingual emotion detection using neural networks
+  powers_of_two             - Evolve VM programs to compute powers of 2
+  powers_of_two_tutorial    - Tutorial: 3 complexity levels of the GA framework
 
 Examples:
   ./pony help
   ./pony compile fibonacci
-  ./pony compile sentiment
   ./pony compile powers_of_two
+  ./pony compile powers_of_two_tutorial
   ./pony run fibonacci train
-  ./pony run sentiment analyze "I'm so happy today!"
   ./pony run powers_of_two train
   ./pony run powers_of_two 5
+  ./pony run powers_of_two_tutorial simple
   ./pony test fibonacci
 EOF
 }

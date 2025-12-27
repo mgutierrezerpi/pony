@@ -1,4 +1,5 @@
-// Demonstration of different complexity levels for the GA framework
+// Tutorial: Demonstrates 3 complexity levels of the GA framework
+// Shows how to solve the same problem (powers of 2) using different APIs
 
 use "core"
 use "_framework"
@@ -25,10 +26,14 @@ actor Main
     end
   
   fun _usage(env: Env) =>
+    env.out.print("=== Powers of Two Tutorial: Framework Complexity Levels ===")
+    env.out.print("")
     env.out.print("Usage - Choose your complexity level:")
-    env.out.print("  simple_main simple  - Simplest (generic byte mutations)")
-    env.out.print("  simple_main vm      - VM-aware (respects nucleos)")
-    env.out.print("  simple_main full    - Full-featured (maximum control)")
+    env.out.print("  powers_of_two_tutorial simple  - Level 1: Simplest (just 3 methods)")
+    env.out.print("  powers_of_two_tutorial vm      - Level 2: VM-aware (respects nucleos)")
+    env.out.print("  powers_of_two_tutorial full    - Level 3: Full control (custom everything)")
+    env.out.print("")
+    env.out.print("Each level solves the same problem with increasing control over the GA.")
   
   fun _simple_train(env: Env) =>
     env.out.print("=== SIMPLE: Just 3 methods, framework does everything ===")
