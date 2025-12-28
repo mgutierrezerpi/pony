@@ -48,17 +48,18 @@ actor GenericGAController[T: ProblemDomain val, O: GenomeOperations val, C: GACo
   var _stagnant_gens: USize = 0          // Generations without improvement
   var _last_best_fitness: F64 = 0.0      // Best fitness from previous generation
 
-  new create(env: Env, domain: T, ops: O, config: C, reporter: ReportSink tag) =>
+  new create(env: Env, domain: T, ops: O, config: C, reporter: ReportSink tag, start_gen: USize = 0) =>
     """
     Creates a new GA controller and starts unlimited evolution.
-    
+
     Parameters:
     - env: System environment for I/O operations
     - domain: Problem domain defining fitness evaluation and genome structure
     - ops: Genetic operations that understand nucleo/codon structure
     - config: Evolution parameters (population size, mutation rates, etc.)
     - reporter: Actor for progress updates and genome persistence
-    
+    - start_gen: Starting generation number (for resuming from saved state)
+
     Immediately begins evolution by creating initial population and evaluating fitness.
     """
     _env = env
@@ -67,16 +68,21 @@ actor GenericGAController[T: ProblemDomain val, O: GenomeOperations val, C: GACo
     _config = config
     _rng = Rand(Time.nanos(), Time.millis())  // Seed with current time for randomness
     _reporter = reporter
+    _gen = start_gen  // Initialize with starting generation (0 for new runs)
     _max_gens = 0 // No generation limit - evolve until perfect solution found
     _init_pop()   // Create initial random population
     _eval_pop()   // Start fitness evaluation process
   
-  new with_limit(env: Env, domain: T, ops: O, config: C, reporter: ReportSink tag, max_gens: USize) =>
+  new with_limit(env: Env, domain: T, ops: O, config: C, reporter: ReportSink tag, max_gens: USize, start_gen: USize = 0) =>
     """
     Creates a new GA controller with a generation limit.
-    
+
     Same as create() but stops evolution after max_gens generations even if
     perfect solution is not found. Useful for time-bounded experiments.
+
+    Parameters:
+    - max_gens: Maximum generation number to reach before stopping
+    - start_gen: Starting generation number (for resuming from saved state)
     """
     _env = env
     _domain = domain
@@ -84,6 +90,7 @@ actor GenericGAController[T: ProblemDomain val, O: GenomeOperations val, C: GACo
     _config = config
     _rng = Rand(Time.nanos(), Time.millis())
     _reporter = reporter
+    _gen = start_gen  // Initialize with starting generation (0 for new runs)
     _max_gens = max_gens  // Stop after this many generations
     _init_pop()
     _eval_pop()

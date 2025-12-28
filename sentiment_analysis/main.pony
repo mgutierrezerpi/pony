@@ -99,10 +99,10 @@ actor Main
       if limit > 0 then
         env.out.print("Will run for " + limit.string() + " more generations")
         GenericGAController[SentimentDomainWithLexicons val, SentimentGenomeOperations val, SentimentEvolutionConfig val]
-          .with_limit(env, domain, SentimentGenomeOperations, SentimentEvolutionConfig, reporter, gen + limit)
+          .with_limit(env, domain, SentimentGenomeOperations, SentimentEvolutionConfig, reporter, gen + limit, gen)
       else
         GenericGAController[SentimentDomainWithLexicons val, SentimentGenomeOperations val, SentimentEvolutionConfig val]
-          .create(env, domain, SentimentGenomeOperations, SentimentEvolutionConfig, reporter)
+          .create(env, domain, SentimentGenomeOperations, SentimentEvolutionConfig, reporter, gen)
       end
     | None =>
       env.out.print("No saved genomes found, starting fresh")
