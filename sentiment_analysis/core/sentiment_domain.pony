@@ -1,109 +1,9 @@
-// Sentiment analysis problem domain using modern framework
-// Evolves neural network weights for multilingual sentiment classification
+// Sentiment analysis problem domain using weighted classifier
+// Evolves feature weights for binary sentiment classification
 
 use "random"
 use "collections"
 use "../../_framework"
-
-primitive SentimentDomain is ProblemDomain
-  """
-  Problem domain for evolving neural network weights for sentiment analysis.
-
-  Classifies text as:
-  - Class 0: Positive
-  - Class 1: Negative
-  - Class 2: Neutral
-
-  Supports English and Spanish text using NRC Emotion Lexicon.
-  """
-
-  fun genome_size(): USize => NeuralNetwork.genome_size()
-
-  fun random_genome(rng: Rand): Array[U8] val =>
-    """
-    Generate random neural network weights.
-    Each byte represents a weight that will be scaled to [-2.0, 2.0].
-    """
-    recover val
-      let genome = Array[U8](genome_size())
-      for _ in Range[USize](0, genome_size()) do
-        genome.push(rng.next().u8())
-      end
-      genome
-    end
-
-  fun evaluate(genome: Array[U8] val): F64 =>
-    """
-    Evaluate fitness on test cases.
-    Returns accuracy (0.0 to 1.0).
-    """
-    // Note: We'll need to load lexicons in main and pass them somehow
-    // For now, this is a simplified version
-    // In practice, the domain would need lexicons passed at creation
-    let test_cases = TestDataset.get_test_cases()
-
-    var correct: USize = 0
-
-    // Dummy lexicons for compilation (will be replaced with real ones)
-    let empty_lex: Map[String, (Bool, Bool)] val = recover val Map[String, (Bool, Bool)] end
-
-    for sample in test_cases.values() do
-      (let text, let expected_class) = sample
-
-      // Extract features
-      let features = FeatureExtractor.extract(text, empty_lex, empty_lex)
-
-      // Forward pass through network
-      let outputs = NeuralNetwork.forward_pass(genome, features)
-
-      // Get predicted class
-      let predicted_class = NeuralNetwork.classify(outputs)
-
-      // Check if correct
-      if predicted_class == expected_class then
-        correct = correct + 1
-      end
-    end
-
-    // Return accuracy
-    correct.f64() / test_cases.size().f64()
-
-  fun perfect_fitness(): F64 => 0.95  // 95% accuracy is considered excellent
-
-  fun display_result(genome: Array[U8] val): String =>
-    """
-    Show example predictions on test sentences.
-    """
-    let examples = [
-      "I love this amazing movie"
-      "This is terrible and awful"
-      "The table is brown"
-      "Me encanta esta película"
-      "Esto es horrible"
-      "La mesa es marrón"
-    ]
-
-    let class_names: Array[String] val = ["Positive"; "Negative"; "Neutral"]
-    let empty_lex: Map[String, (Bool, Bool)] val = recover val Map[String, (Bool, Bool)] end
-
-    var result = "Sentiment predictions:\n"
-
-    for text in examples.values() do
-      let features = FeatureExtractor.extract(text, empty_lex, empty_lex)
-      let outputs = NeuralNetwork.forward_pass(genome, features)
-      let predicted = NeuralNetwork.classify(outputs)
-
-      try
-        let class_name = class_names(predicted)?
-        var confidence: F64 = 0.0
-        try confidence = outputs(predicted)? end
-
-        result = result + "\"" + text + "\" -> " + class_name
-        result = result + " (" + (confidence * 100).string() + "%)\n"
-      end
-    end
-
-    result
 
 class SentimentDomainWithLexicons is ProblemDomain
   """
@@ -236,7 +136,7 @@ class SentimentDomainWithLexicons is ProblemDomain
 
 primitive SentimentGenomeOperations is GenomeOperations
   """
-  Genetic operations for neural network genomes.
+  Genetic operations for weighted classifier genomes.
   """
 
   fun mutate(rng: Rand, genome: Array[U8] val): Array[U8] val =>
@@ -291,20 +191,18 @@ primitive SentimentGenomeOperations is GenomeOperations
 
   fun crossover(rng: Rand, a: Array[U8] val, b: Array[U8] val): (Array[U8] val, Array[U8] val) =>
     """
-    Layer-aware crossover: swap at neural network layer boundaries.
+    Simple crossover: swap at midpoint of feature weights.
 
-    Boundaries:
-    - 0-764: Input->Hidden weights (50*15 + 15 biases)
-    - 765-812: Hidden->Output weights (15*3 + 3 biases)
+    For 50-feature genomes, this swaps at position 25.
     """
     let size = a.size().min(b.size())
-    let layer_boundary: USize = 765  // Between hidden and output layers
+    let crossover_point: USize = size / 2  // Midpoint crossover
 
     (recover val
       let child1 = Array[U8](size)
       for i in Range[USize](0, size) do
         try
-          if i < layer_boundary then
+          if i < crossover_point then
             child1.push(a(i)?)
           else
             child1.push(b(i)?)
@@ -317,7 +215,7 @@ primitive SentimentGenomeOperations is GenomeOperations
       let child2 = Array[U8](size)
       for i in Range[USize](0, size) do
         try
-          if i < layer_boundary then
+          if i < crossover_point then
             child2.push(b(i)?)
           else
             child2.push(a(i)?)
