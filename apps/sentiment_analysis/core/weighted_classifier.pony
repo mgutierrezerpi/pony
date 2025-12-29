@@ -1,7 +1,7 @@
 // Sentiment-specific wrapper for the generic WeightedVotingClassifier
 // Uses the reusable operator from _framework/operators/classifiers
 
-use "../../_framework/operators/classifiers"
+use "../../../packages/_framework/operators/classifiers"
 
 primitive WeightedClassifier
   """

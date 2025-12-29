@@ -65,42 +65,64 @@ This cycle continues until target fitness is achieved or generation limit is rea
 
 ## Project Architecture
 
+The repository follows a monorepo-style structure:
+
+```
+pony/
+├── packages/              # Reusable framework code
+│   └── _framework/        # Core GA framework
+├── apps/                  # Applications
+│   ├── powers_of_two/     # Powers of 2 evolution
+│   ├── sentiment_analysis/# Sentiment classifier
+│   └── web_server/        # REST API for models
+├── pony                   # Build script
+├── README.md
+└── CLAUDE.md
+```
+
 ### Core Framework Structure
 
 The codebase implements genetic algorithms (GA) using Pony's actor model for parallel evolution:
 
-1. **`_framework/` directory**: Reusable GA framework components
+1. **`packages/_framework/` directory**: Reusable GA framework components
    - `interfaces.pony`: Core traits (ProblemDomain, GenomeOperations, GAConfiguration)
    - `ga_controller.pony`: Main evolution logic and selection algorithms
-   - `parallel_ga.pony`: Actor-based parallel fitness evaluation (sentiment only)
+   - `parallel_ga.pony`: Actor-based parallel fitness evaluation
    - `persistence.pony`: Binary genome storage (.bytes files)
-   - `metrics_persistence.pony`: YAML metrics tracking (sentiment only)
+   - `metrics_persistence.pony`: YAML metrics tracking
    - `reporter.pony`: Progress reporting and logging
+   - `operators/`: Reusable genetic operators (mutations, classifiers, decoders)
 
-2. **`core/` directory**: Domain-specific implementations
+2. **`apps/` directory**: Complete applications using the framework
+   - Each app has its own `core/` directory with domain-specific implementations
    - Problem-specific domain classes implementing framework interfaces
-   - VM configurations and execution engines (fibonacci)
-   - Neural network implementations (sentiment)
+   - VM configurations and execution engines
+   - Neural network implementations
 
 3. **Actor Model Usage**:
    - Main actor coordinates evolution
-   - FitnessWorker actors evaluate genomes in parallel (11 workers in sentiment)
-   - Supervisor pattern demonstrated in `supervisor/` project
+   - FitnessWorker actors evaluate genomes in parallel
+   - Supervisor pattern for robust parallel execution
 
-### Key Projects
+### Key Applications
 
-**fibonacci/**: Evolves VM programs to compute Fibonacci sequence
-- Virtual machine with 4 registers and 9 opcodes
+**powers_of_two/**: Evolves VM programs to compute powers of 2
+- Virtual machine with 4 registers and 12 opcodes
 - Genome = 16 instructions × 3 bytes = 48 bytes
-- Test suite in `test_vm.pony`
+- Test suite in `test/` directory
+- Uses VM-aware mutation operators
 
-**sentiment/**: Multilingual sentiment classification using evolved neural networks
+**sentiment_analysis/**: Multilingual sentiment classification
 - 50-feature extraction from text (NRC emotion lexicon)
-- Neural network: 50→15→3 architecture (813 weights)
+- Weighted voting classifier (50 weights)
 - Supports English and Spanish text analysis
-- Parallel evaluation with 11 worker actors
+- IMDB dataset training (50,000 reviews)
+- Parallel evaluation with worker actors
 
-**actors/** and **supervisor/**: Actor model demonstrations
+**web_server/**: REST API for trained models
+- Exposes sentiment analysis via HTTP endpoints
+- JSON request/response format
+- Configurable via environment variables
 
 ## Domain Implementation Pattern
 
@@ -134,17 +156,23 @@ To resume training from saved state:
 
 ### Adding a New Genetic Algorithm Project
 
-1. Create project directory with standard structure:
+1. Create project directory in `apps/` with standard structure:
    ```
-   project_name/
+   apps/project_name/
    ├── main.pony           # Entry point
    ├── core/               # Domain implementation
-   └── _framework/         # Copy or symlink framework
+   └── bin/                # Compiled binaries (auto-created)
    ```
 
-2. Implement domain traits in `core/` directory
+2. Import framework from packages:
+   ```pony
+   use "../../packages/_framework"
+   use "../../packages/_framework/operators/mutations"
+   ```
 
-3. Update `./pony` script if needed for new commands
+3. Implement domain traits in `core/` directory
+
+4. Projects are automatically discovered by `./pony` script in `apps/` folder
 
 ### Modifying GA Parameters
 

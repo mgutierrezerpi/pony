@@ -4,19 +4,19 @@
 use "net"
 use "collections"
 use "../sentiment_analysis/core"
-use "../_framework"
+use "../../packages/_framework"
 use "files"
 
 actor Main
   new create(env: Env) =>
     let auth = TCPListenAuth(env.root)
 
-    // Load configuration from environment variables with defaults
-    let host = try env.vars("HOST")? else "127.0.0.1" end
-    let port = try env.vars("PORT")? else "8080" end
-    let english_lex_path = try env.vars("ENGLISH_LEXICON")? else "sentiment_analysis/data/English-NRC-EmoLex.txt" end
-    let spanish_lex_path = try env.vars("SPANISH_LEXICON")? else "sentiment_analysis/data/Spanish-NRC-EmoLex.txt" end
-    let model_path = try env.vars("MODEL_PATH")? else "sentiment_analysis/bin/" end
+    // Load configuration from environment variables with fallback to defaults
+    let host = _get_env_var(env, "HOST", "127.0.0.1")
+    let port = _get_env_var(env, "PORT", "8080")
+    let english_lex_path = _get_env_var(env, "ENGLISH_LEXICON", "apps/sentiment_analysis/data/English-NRC-EmoLex.txt")
+    let spanish_lex_path = _get_env_var(env, "SPANISH_LEXICON", "apps/sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
+    let model_path = _get_env_var(env, "MODEL_PATH", "apps/sentiment_analysis/bin/")
 
     env.out.print("=== Configuration ===")
     env.out.print("Host: " + host)
@@ -44,6 +44,22 @@ actor Main
     env.out.print("  POST /sentiment_analysis - Analyze sentiment of text")
     env.out.print("  GET  /health            - Health check")
     env.out.print("")
+
+  fun _get_env_var(e: Env, name: String, default: String): String =>
+    """
+    Get environment variable by name, with fallback to default value.
+    Searches through env.vars array for NAME=VALUE format.
+    """
+    for v in e.vars.values() do
+      try
+        let eq_pos = v.find("=")?
+        let var_name = v.substring(0, eq_pos)
+        if var_name == name then
+          return v.substring(eq_pos + 1)
+        end
+      end
+    end
+    default
 
 class WebServer is TCPListenNotify
   let _env: Env
@@ -190,17 +206,23 @@ class HTTPConnection is TCPConnectionNotify
 
       // Perform sentiment analysis
       let features = FeatureExtractor.extract(text, _english_lex, _spanish_lex)
-      let outputs = NeuralNetwork.forward_pass(genome, features)
-      let predicted = NeuralNetwork.classify(outputs)
+      let predicted = WeightedClassifier.classify(genome, features)
+      (let pos_score, let neg_score) = WeightedClassifier.get_scores(genome, features)
 
-      let class_names: Array[String] val = ["Positive"; "Negative"; "Neutral"]
+      let class_names: Array[String] val = ["Positive"; "Negative"]
 
       try
         let sentiment = class_names(predicted)?
-        let confidence = outputs(predicted)?
-        let pos_score = outputs(0)?
-        let neg_score = outputs(1)?
-        let neu_score = outputs(2)?
+        let total_score = pos_score + neg_score
+        let confidence = if total_score > 0.0 then
+          if predicted == 0 then
+            (pos_score / total_score) * 100.0
+          else
+            (neg_score / total_score) * 100.0
+          end
+        else
+          50.0
+        end
 
         // Build JSON response
         let response = recover val
@@ -213,8 +235,6 @@ class HTTPConnection is TCPConnectionNotify
           s.append(pos_score.string())
           s.append(",\"negative\": ")
           s.append(neg_score.string())
-          s.append(",\"neutral\": ")
-          s.append(neu_score.string())
           s.append("}}")
           s
         end

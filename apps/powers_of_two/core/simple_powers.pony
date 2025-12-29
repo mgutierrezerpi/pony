@@ -2,7 +2,7 @@
 
 use "random"
 use "collections"
-use "../../_framework"
+use "../../../packages/_framework"
 
 primitive PowersOfTwo is SimpleProblem
   """

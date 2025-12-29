@@ -3,7 +3,7 @@
 use "random"
 use "time"
 use "files"
-use "../_framework"
+use "../../packages/_framework"
 use "core"
 
 actor Main
@@ -50,7 +50,7 @@ actor Main
     env.out.print("Starting GA training for computing 2^n...")
     env.out.print("")
     
-    let reporter = GenericReporter(env, "powers_of_two/bin/")
+    let reporter = GenericReporter(env, "apps/powers_of_two/bin/")
     GenericGAController[PowersDomain val, PowersGenomeOperations val, PowersEvolutionConfig val]
       .create(env, PowersDomain, PowersGenomeOperations, PowersEvolutionConfig, reporter)
   
@@ -67,12 +67,12 @@ actor Main
     end
     
     // Load the latest generation
-    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "powers_of_two/bin/")
+    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "apps/powers_of_two/bin/")
     
     match genome
     | let g: Array[U8] val =>
       env.out.print("Resuming from generation " + gen.string())
-      let reporter = GenericReporter(env, "powers_of_two/bin/")
+      let reporter = GenericReporter(env, "apps/powers_of_two/bin/")
       
       if limit > 0 then
         env.out.print("Will run for " + limit.string() + " more generations")
@@ -89,14 +89,14 @@ actor Main
   
   fun _clear(env: Env) =>
     env.out.print("Clearing all saved generations...")
-    let deleted = GenomePersistence.clear_all_generations(env, "powers_of_two/bin/")
+    let deleted = GenomePersistence.clear_all_generations(env, "apps/powers_of_two/bin/")
     env.out.print("Deleted " + deleted.string() + " generation files")
   
   fun _summary(env: Env) =>
     env.out.print("Generating evolution summary...")
     
     // Find the latest generation and best fitness
-    (let latest_gen, let best_genome) = GenomePersistence.find_latest_generation(env, "powers_of_two/bin/")
+    (let latest_gen, let best_genome) = GenomePersistence.find_latest_generation(env, "apps/powers_of_two/bin/")
     
     match best_genome
     | let genome: Array[U8] val =>
@@ -105,7 +105,7 @@ actor Main
       // Create evolution summary in main project directory
       let success = EvolutionDataArchiver.create_evolution_summary_report(
         env, 
-        "powers_of_two/",  // Save in main project directory instead of bin/
+        "apps/powers_of_two/",  // Save in main project directory instead of bin/
         latest_gen, 
         best_fitness, 
         latest_gen
@@ -143,7 +143,7 @@ actor Main
   
   fun _compute_power(env: Env, n: USize) =>
     // Find and load the best trained genome
-    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "powers_of_two/bin/")
+    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "apps/powers_of_two/bin/")
     
     match genome
     | let g: Array[U8] val =>
@@ -176,7 +176,7 @@ actor Main
 
   fun _disassemble(env: Env) =>
     // Load the best genome
-    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "powers_of_two/bin/")
+    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "apps/powers_of_two/bin/")
 
     match genome
     | let g: Array[U8] val =>

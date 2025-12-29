@@ -5,7 +5,7 @@ use "random"
 use "time"
 use "files"
 use "collections"
-use "../_framework"
+use "../../packages/_framework"
 use "core"
 
 actor Main
@@ -46,12 +46,12 @@ actor Main
     env.out.print("")
 
     // Load NRC lexicons for feature extraction
-    let english_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/English-NRC-EmoLex.txt")
-    let spanish_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
+    let english_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/English-NRC-EmoLex.txt")
+    let spanish_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
 
     // Load IMDB movie reviews dataset (real training data!)
     env.out.print("Loading IMDB dataset (this may take a moment)...")
-    let imdb_data = IMDBDatasetLoader.load_imdb_dataset(env, "sentiment_analysis/data/imdb_dataset.csv")
+    let imdb_data = IMDBDatasetLoader.load_imdb_dataset(env, "apps/sentiment_analysis/data/imdb_dataset.csv")
 
     env.out.print("English lexicon: " + english_lex.size().string() + " words")
     env.out.print("Spanish lexicon: " + spanish_lex.size().string() + " words")
@@ -65,7 +65,7 @@ actor Main
     // Create domain with lexicons and IMDB data
     let domain = SentimentDomainWithLexicons(english_lex, spanish_lex, imdb_data)
 
-    let reporter = GenericReporter(env, "sentiment_analysis/bin/")
+    let reporter = GenericReporter(env, "apps/sentiment_analysis/bin/")
     GenericGAController[SentimentDomainWithLexicons val, SentimentGenomeOperations val, SentimentEvolutionConfig val]
       .create(env, domain, SentimentGenomeOperations, SentimentEvolutionConfig, reporter)
 
@@ -82,20 +82,20 @@ actor Main
     end
 
     // Load the latest generation
-    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "sentiment_analysis/bin/")
+    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "apps/sentiment_analysis/bin/")
 
     match genome
     | let g: Array[U8] val =>
       env.out.print("Resuming from generation " + gen.string())
 
       // Load lexicons and data
-      let english_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/English-NRC-EmoLex.txt")
-      let spanish_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
+      let english_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/English-NRC-EmoLex.txt")
+      let spanish_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
       env.out.print("Loading IMDB dataset...")
-      let imdb_data = IMDBDatasetLoader.load_imdb_dataset(env, "sentiment_analysis/data/imdb_dataset.csv")
+      let imdb_data = IMDBDatasetLoader.load_imdb_dataset(env, "apps/sentiment_analysis/data/imdb_dataset.csv")
 
       let domain = SentimentDomainWithLexicons(english_lex, spanish_lex, imdb_data)
-      let reporter = GenericReporter(env, "sentiment_analysis/bin/")
+      let reporter = GenericReporter(env, "apps/sentiment_analysis/bin/")
 
       if limit > 0 then
         env.out.print("Will run for " + limit.string() + " more generations")
@@ -112,22 +112,22 @@ actor Main
 
   fun _clear(env: Env) =>
     env.out.print("Clearing all saved generations...")
-    let deleted = GenomePersistence.clear_all_generations(env, "sentiment_analysis/bin/")
+    let deleted = GenomePersistence.clear_all_generations(env, "apps/sentiment_analysis/bin/")
     env.out.print("Deleted " + deleted.string() + " generation files")
 
   fun _summary(env: Env) =>
     env.out.print("Generating evolution summary...")
 
     // Find the latest generation and best fitness
-    (let latest_gen, let best_genome) = GenomePersistence.find_latest_generation(env, "sentiment_analysis/bin/")
+    (let latest_gen, let best_genome) = GenomePersistence.find_latest_generation(env, "apps/sentiment_analysis/bin/")
 
     match best_genome
     | let genome: Array[U8] val =>
       // Load lexicons and data for evaluation
-      let english_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/English-NRC-EmoLex.txt")
-      let spanish_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
+      let english_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/English-NRC-EmoLex.txt")
+      let spanish_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
       env.out.print("Loading IMDB dataset...")
-      let imdb_data = IMDBDatasetLoader.load_imdb_dataset(env, "sentiment_analysis/data/imdb_dataset.csv")
+      let imdb_data = IMDBDatasetLoader.load_imdb_dataset(env, "apps/sentiment_analysis/data/imdb_dataset.csv")
       let domain = SentimentDomainWithLexicons(english_lex, spanish_lex, imdb_data)
 
       let best_fitness = domain.evaluate(genome)
@@ -135,7 +135,7 @@ actor Main
       // Create evolution summary
       let success = EvolutionDataArchiver.create_evolution_summary_report(
         env,
-        "sentiment_analysis/",
+        "apps/sentiment_analysis/",
         latest_gen,
         best_fitness,
         latest_gen
@@ -158,7 +158,7 @@ actor Main
     env.out.print("Testing sentiment classifier...")
 
     // Load genome
-    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "sentiment_analysis/bin/")
+    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "apps/sentiment_analysis/bin/")
 
     match genome
     | let g: Array[U8] val =>
@@ -166,10 +166,10 @@ actor Main
       env.out.print("")
 
       // Load lexicons and data
-      let english_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/English-NRC-EmoLex.txt")
-      let spanish_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
+      let english_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/English-NRC-EmoLex.txt")
+      let spanish_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
       env.out.print("Loading IMDB dataset...")
-      let imdb_data = IMDBDatasetLoader.load_imdb_dataset(env, "sentiment_analysis/data/imdb_dataset.csv")
+      let imdb_data = IMDBDatasetLoader.load_imdb_dataset(env, "apps/sentiment_analysis/data/imdb_dataset.csv")
       let domain = SentimentDomainWithLexicons(english_lex, spanish_lex, imdb_data)
 
       // Show fitness
@@ -201,13 +201,13 @@ actor Main
     end
 
     // Load genome
-    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "sentiment_analysis/bin/")
+    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "apps/sentiment_analysis/bin/")
 
     match genome
     | let g: Array[U8] val =>
         // Load lexicons
-        let english_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/English-NRC-EmoLex.txt")
-        let spanish_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
+        let english_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/English-NRC-EmoLex.txt")
+        let spanish_lex = NRCLexiconLoader.load_lexicon(env, "apps/sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
 
         // Extract features
         let features = FeatureExtractor.extract(text, english_lex, spanish_lex)

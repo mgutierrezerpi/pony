@@ -3,8 +3,8 @@
 
 use "random"
 use "collections"
-use "../../_framework"
-use "../../_framework/operators/mutations"
+use "../../../packages/_framework"
+use "../../../packages/_framework/operators/mutations"
 
 // Mathematical helper for computing powers of 2
 primitive PowersOfTwoCalculator

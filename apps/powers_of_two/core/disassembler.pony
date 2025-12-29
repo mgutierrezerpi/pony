@@ -1,7 +1,7 @@
 // Genome disassembler for powers of 2 VM programs
 // Displays human-readable representation of nucleos and execution traces
 
-use "../../_framework"
+use "../../../packages/_framework"
 
 primitive PowersDisassembler is GenomeDisassembler
   """

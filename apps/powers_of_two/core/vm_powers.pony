@@ -1,7 +1,7 @@
 // VM Powers of 2 - Nucleo-aware but much simpler!
 
 use "collections"
-use "../../_framework"
+use "../../../packages/_framework"
 
 primitive VMPowersOfTwo is VMProblem
   """

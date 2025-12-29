@@ -8,27 +8,35 @@ Usage: ./pony <command> <project_name> [args...]
 
 Commands:
   help                    - Show this help message
-  compile <project>       - Compile the project to project/bin/
+  compile <project>       - Compile the project to apps/<project>/bin/
   run <project> [args]    - Run the compiled project with optional arguments
   test <project>          - Run unit tests for the project
   disassemble <project>   - Disassemble the best genome (shows nucleos and execution trace)
 
-Available Projects:
-  fibonacci                 - Evolve VM programs to compute Fibonacci sequences
-  sentiment                 - Multilingual emotion detection using neural networks
-  powers_of_two             - Evolve VM programs to compute powers of 2
-  powers_of_two_tutorial    - Tutorial: 3 complexity levels of the GA framework
+Available Projects (in apps/):
+  powers_of_two           - Evolve VM programs to compute powers of 2
+  sentiment_analysis      - Multilingual sentiment classification using evolved weights
+  web_server              - REST API server for trained models
 
 Examples:
   ./pony help
-  ./pony compile fibonacci
   ./pony compile powers_of_two
-  ./pony compile powers_of_two_tutorial
-  ./pony run fibonacci train
+  ./pony compile sentiment_analysis
+  ./pony compile web_server
+
   ./pony run powers_of_two train
   ./pony run powers_of_two 5
-  ./pony run powers_of_two_tutorial simple
-  ./pony test fibonacci
+  ./pony run powers_of_two resume 100
+  ./pony run powers_of_two disassemble
+
+  ./pony run sentiment_analysis train
+  ./pony run sentiment_analysis analyze "I love this movie"
+  ./pony run sentiment_analysis test
+
+  ./pony run web_server
+  HOST=0.0.0.0 PORT=3000 ./pony run web_server
+
+  ./pony test powers_of_two
   ./pony disassemble powers_of_two
 EOF
 }
@@ -45,33 +53,34 @@ fi
 
 COMMAND=$1
 PROJECT=$2
+PROJECT_DIR="apps/$PROJECT"
 
 case "$COMMAND" in
     "help")
         show_usage
         exit 0
         ;;
-        
+
     "compile")
-        if [ ! -d "$PROJECT" ]; then
-            echo "Error: Project directory '$PROJECT' does not exist"
+        if [ ! -d "$PROJECT_DIR" ]; then
+            echo "Error: Project directory '$PROJECT_DIR' does not exist"
             exit 1
         fi
-        
+
         echo "Compiling $PROJECT..."
-        mkdir -p "$PROJECT/bin"
-        ponyc "$PROJECT" --output "$PROJECT/bin" --bin-name "$PROJECT"
+        mkdir -p "$PROJECT_DIR/bin"
+        ponyc "$PROJECT_DIR" --output "$PROJECT_DIR/bin" --bin-name "$PROJECT"
         
         if [ $? -eq 0 ]; then
-            echo "✅ Successfully compiled $PROJECT to $PROJECT/bin/$PROJECT"
+            echo "✅ Successfully compiled $PROJECT to $PROJECT_DIR/bin/$PROJECT"
         else
             echo "❌ Compilation failed"
             exit 1
         fi
         ;;
-        
+
     "run")
-        EXECUTABLE="$PROJECT/bin/$PROJECT"
+        EXECUTABLE="$PROJECT_DIR/bin/$PROJECT"
         
         if [ ! -f "$EXECUTABLE" ]; then
             echo "Error: Executable '$EXECUTABLE' not found"
@@ -92,38 +101,38 @@ case "$COMMAND" in
         ;;
         
     "test")
-        if [ ! -d "$PROJECT" ]; then
-            echo "Error: Project directory '$PROJECT' does not exist"
+        if [ ! -d "$PROJECT_DIR" ]; then
+            echo "Error: Project directory '$PROJECT_DIR' does not exist"
             exit 1
         fi
 
         echo "Running tests for $PROJECT..."
-        mkdir -p "$PROJECT/bin"
+        mkdir -p "$PROJECT_DIR/bin"
 
         # Check if we have test files in test directory
-        if [ -f "$PROJECT/test/test_vm.pony" ] && [ -f "$PROJECT/test/test_main.pony" ]; then
+        if [ -f "$PROJECT_DIR/test/test_vm.pony" ] && [ -f "$PROJECT_DIR/test/test_main.pony" ]; then
             echo "Compiling and running test suite..."
 
             # Create a temporary test directory
-            mkdir -p "$PROJECT/test_build"
+            mkdir -p "$PROJECT_DIR/test_build"
 
             # Copy test files and dependencies
-            cp "$PROJECT/test/test_vm.pony" "$PROJECT/test_build/"
-            cp "$PROJECT/test/test_main.pony" "$PROJECT/test_build/main.pony"  # Use test_main as main
+            cp "$PROJECT_DIR/test/test_vm.pony" "$PROJECT_DIR/test_build/"
+            cp "$PROJECT_DIR/test/test_main.pony" "$PROJECT_DIR/test_build/main.pony"  # Use test_main as main
 
-            # Copy the core and _framework directories
-            cp -r "$PROJECT/core" "$PROJECT/test_build/"
-            cp -r "$PROJECT/_framework" "$PROJECT/test_build/"
+            # Copy the core and packages directories
+            cp -r "$PROJECT_DIR/core" "$PROJECT_DIR/test_build/"
+            cp -r "packages/_framework" "$PROJECT_DIR/test_build/"
 
             # Compile the test suite
-            ponyc "$PROJECT/test_build" --output "$PROJECT/bin" --bin-name test_runner
+            ponyc "$PROJECT_DIR/test_build" --output "$PROJECT_DIR/bin" --bin-name test_runner
 
             # Clean up
-            rm -rf "$PROJECT/test_build"
+            rm -rf "$PROJECT_DIR/test_build"
 
-            if [ $? -eq 0 ] && [ -f "$PROJECT/bin/test_runner" ]; then
+            if [ $? -eq 0 ] && [ -f "$PROJECT_DIR/bin/test_runner" ]; then
                 echo "Running VM tests..."
-                "./$PROJECT/bin/test_runner"
+                "./$PROJECT_DIR/bin/test_runner"
             else
                 echo "❌ Test compilation failed"
                 exit 1
@@ -135,7 +144,7 @@ case "$COMMAND" in
         ;;
 
     "disassemble")
-        EXECUTABLE="$PROJECT/bin/$PROJECT"
+        EXECUTABLE="$PROJECT_DIR/bin/$PROJECT"
 
         if [ ! -f "$EXECUTABLE" ]; then
             echo "Error: Executable '$EXECUTABLE' not found"
