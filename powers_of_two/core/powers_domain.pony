@@ -4,6 +4,7 @@
 use "random"
 use "collections"
 use "../../_framework"
+use "../../_framework/operators/mutations"
 
 // Mathematical helper for computing powers of 2
 primitive PowersOfTwoCalculator
@@ -73,8 +74,8 @@ primitive PowersDomain is ProblemDomain
       else
         if correct_answer > 0 then
           let error_ratio = (correct_answer - genome_answer).abs().f64() / correct_answer.f64()
-          let minimal_credit = (1.0 - error_ratio.min(1.0)) * 0.001  // Tiny partial credit
-          total_fitness_score = total_fitness_score + minimal_credit
+          let partial_credit = (1.0 - error_ratio.min(1.0)) * 0.2  // More generous partial credit
+          total_fitness_score = total_fitness_score + partial_credit
         end
       end
     end
@@ -94,8 +95,8 @@ primitive PowersDomain is ProblemDomain
       else
         if correct_answer > 0 then
           let error_ratio = (correct_answer - genome_answer).abs().f64() / correct_answer.f64()
-          let minimal_credit = (1.0 - error_ratio.min(1.0)) * 0.001
-          total_fitness_score = total_fitness_score + minimal_credit
+          let partial_credit = (1.0 - error_ratio.min(1.0)) * 0.2  // More generous partial credit
+          total_fitness_score = total_fitness_score + partial_credit
         end
       end
     end
@@ -149,148 +150,54 @@ primitive PowersDomain is ProblemDomain
 primitive PowersGenomeOperations is GenomeOperations
   """
   Genetic operations (mutation, crossover) specialized for VM nucleo genomes.
-  
-  These operations are aware of the VM nucleo format:
+  Uses the reusable VMMutations operator from the framework!
+
+  VM nucleo format:
   - Each nucleo is 3 bytes: [opcode, destination_register, source_register]
-  - There are 12 different nucleo types and 4 registers
-  - Mutations respect nucleo boundaries to maintain codon integrity
+  - 12 different nucleo types (opcodes 0-11)
+  - 4 registers (0-3)
   """
-  
-  fun mutate(random_generator: Rand, parent_genome: Array[U8] val): Array[U8] val =>
+
+  fun mutate(rng: Rand, genome: Array[U8] val): Array[U8] val =>
     """
-    Standard mutation: modifies 1-2 random nucleos in the genome.
-    Respects nucleo boundaries and valid opcode/register ranges to preserve codon structure.
+    Standard mutation: modifies 1-2 random nucleos.
+    Uses generic VMMutations operator with VM-specific constraints.
     """
-    recover val
-      // Create a copy of the parent genome
-      let mutated_genome = Array[U8](parent_genome.size())
-      for byte_value in parent_genome.values() do
-        mutated_genome.push(byte_value)
-      end
-      
-      // Decide how many nucleos to mutate (1 or 2)
-      let num_mutations = 1 + (random_generator.next().usize() % 2)
-      
-      for mutation_count in Range[USize](0, num_mutations) do
-        try
-          // Pick a random nucleo to mutate (0-15)
-          let nucleo_index = random_generator.next().usize() % 16
-          let nucleo_start_byte = nucleo_index * 3
-          
-          // Decide what part of the nucleo to mutate (opcode or operands)
-          let mutation_target = random_generator.next() % 3
-          
-          if mutation_target == 0 then
-            // Mutate the nucleo opcode (first byte)
-            mutated_genome(nucleo_start_byte)? = random_generator.next().u8() % 12  // 12 valid nucleos
-          else
-            // Mutate one of the operand registers
-            let operand_byte_offset = mutation_target.usize()
-            mutated_genome(nucleo_start_byte + operand_byte_offset)? = random_generator.next().u8() % 4  // 4 valid registers
-          end
-        end
-      end
-      mutated_genome
-    end
-  
-  fun heavy_mutate(random_generator: Rand, parent_genome: Array[U8] val): Array[U8] val =>
+    let mutation_count = 1 + (rng.next().usize() % 2)
+    let constraints: Array[(U8, U8)] val = [(0, 11); (0, 3); (0, 3)]  // opcode 0-11, regs 0-3
+
+    VMMutations.mutate_instructions(rng, genome, 3, mutation_count, constraints)
+
+  fun heavy_mutate(rng: Rand, genome: Array[U8] val): Array[U8] val =>
     """
-    Heavy mutation: randomizes 5-8 complete nucleos for escaping local optima.
-    Used when the population becomes too similar and needs diversity.
-    May break existing codon structures but enables exploration of new solutions.
+    Heavy mutation: randomizes 5-8 complete nucleos.
+    Uses generic VMMutations operator - much cleaner than custom code!
     """
-    recover val
-      let heavily_mutated_genome = Array[U8](parent_genome.size())
-      for byte_value in parent_genome.values() do
-        heavily_mutated_genome.push(byte_value)
-      end
-      
-      // Mutate many nucleos (5-8)
-      let num_heavy_mutations = 5 + (random_generator.next().usize() % 4)
-      
-      for mutation_count in Range[USize](0, num_heavy_mutations) do
-        try
-          let nucleo_to_randomize = random_generator.next().usize() % 16
-          let nucleo_byte_start = nucleo_to_randomize * 3
-          
-          // Completely randomize all 3 bytes of the nucleo
-          heavily_mutated_genome(nucleo_byte_start)? = random_generator.next().u8() % 12     // 12 nucleo types
-          heavily_mutated_genome(nucleo_byte_start + 1)? = random_generator.next().u8() % 4  // destination register
-          heavily_mutated_genome(nucleo_byte_start + 2)? = random_generator.next().u8() % 4  // source register
-        end
-      end
-      heavily_mutated_genome
-    end
-  
-  fun crossover(random_generator: Rand, parent_a: Array[U8] val, parent_b: Array[U8] val): (Array[U8] val, Array[U8] val) =>
+    let mutation_count = 5 + (rng.next().usize() % 4)
+    let constraints: Array[(U8, U8)] val = [(0, 11); (0, 3); (0, 3)]
+
+    VMMutations.heavy_mutate_instructions(rng, genome, 3, mutation_count, constraints)
+
+  fun crossover(rng: Rand, parent_a: Array[U8] val, parent_b: Array[U8] val): (Array[U8] val, Array[U8] val) =>
     """
     Two-point crossover that respects nucleo boundaries.
-    Swaps a contiguous block of nucleos between two parent genomes.
-    This preserves codon structures within the swapped region.
+    Uses generic VMMutations crossover operator.
     """
-    // Choose two random nucleo positions for crossover points
-    let crossover_point_1 = random_generator.next().usize() % 16
-    let crossover_point_2 = random_generator.next().usize() % 16
-    let crossover_start_nucleo = if crossover_point_1 < crossover_point_2 then crossover_point_1 else crossover_point_2 end
-    let crossover_end_nucleo = if crossover_point_1 < crossover_point_2 then crossover_point_2 else crossover_point_1 end
-    
-    // Convert nucleo indices to byte positions
-    let crossover_start_byte = crossover_start_nucleo * 3
-    let crossover_end_byte = crossover_end_nucleo * 3
-    
-    // Create first offspring
-    let offspring_1 = recover val
-      let child_genome = Array[U8](48)
-      var byte_index: USize = 0
-      while byte_index < 48 do
-        try
-          if (byte_index >= crossover_start_byte) and (byte_index < crossover_end_byte) then
-            // Take this section from parent B
-            child_genome.push(parent_b(byte_index)?)
-          else
-            // Take this section from parent A
-            child_genome.push(parent_a(byte_index)?)
-          end
-        end
-        byte_index = byte_index + 1
-      end
-      child_genome
-    end
-    
-    // Create second offspring (opposite crossover)
-    let offspring_2 = recover val
-      let child_genome = Array[U8](48)
-      var byte_index: USize = 0
-      while byte_index < 48 do
-        try
-          if (byte_index >= crossover_start_byte) and (byte_index < crossover_end_byte) then
-            // Take this section from parent A
-            child_genome.push(parent_a(byte_index)?)
-          else
-            // Take this section from parent B
-            child_genome.push(parent_b(byte_index)?)
-          end
-        end
-        byte_index = byte_index + 1
-      end
-      child_genome
-    end
-    
-    (offspring_1, offspring_2)
+    VMMutations.crossover_instructions(rng, parent_a, parent_b, 3)
 
 primitive PowersEvolutionConfig is GAConfiguration
   """
   Genetic Algorithm configuration parameters for powers of 2 evolution.
-  
+
   These parameters control the evolution process:
   - Population size: how many genomes evolve simultaneously
   - Tournament size: how many compete in selection
   - Mutation/crossover rates: how often genetic operations occur
   - Elitism: how many best genomes are preserved each generation
   """
-  fun population_size(): USize => 200        // Large population for diversity
-  fun tournament_size(): USize => 3          // Small tournaments for selection pressure
+  fun population_size(): USize => 500        // Large population for diversity
+  fun tournament_size(): USize => 5          // Larger tournaments for selection pressure
   fun worker_count(): USize => 8             // Parallel fitness evaluation
-  fun mutation_rate(): F64 => 0.15           // Higher mutation rate for exploration
-  fun crossover_rate(): F64 => 0.7           // Moderate crossover rate
-  fun elitism_count(): USize => 3            // Preserve top 3 genomes each generation
+  fun mutation_rate(): F64 => 0.18           // Balanced mutation rate (not too destructive)
+  fun crossover_rate(): F64 => 0.75          // Higher crossover to preserve building blocks
+  fun elitism_count(): USize => 10           // Preserve more top genomes to prevent degeneration

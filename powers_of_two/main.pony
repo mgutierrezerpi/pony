@@ -77,10 +77,10 @@ actor Main
       if limit > 0 then
         env.out.print("Will run for " + limit.string() + " more generations")
         GenericGAController[PowersDomain val, PowersGenomeOperations val, PowersEvolutionConfig val]
-          .with_limit(env, PowersDomain, PowersGenomeOperations, PowersEvolutionConfig, reporter, gen + limit)
+          .with_limit(env, PowersDomain, PowersGenomeOperations, PowersEvolutionConfig, reporter, gen + limit, gen)
       else
         GenericGAController[PowersDomain val, PowersGenomeOperations val, PowersEvolutionConfig val]
-          .create(env, PowersDomain, PowersGenomeOperations, PowersEvolutionConfig, reporter)
+          .create(env, PowersDomain, PowersGenomeOperations, PowersEvolutionConfig, reporter, gen)
       end
     | None =>
       env.out.print("No saved genomes found, starting fresh")

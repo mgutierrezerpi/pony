@@ -70,8 +70,9 @@ actor Main
   fun format_nucleo(pc: USize, opcode: U8, dest: U8, src: U8, instruction: String, comment: String): String =>
     let pc_str = if pc < 10 then " " + pc.string() else pc.string() end
     let bytes = "[" + opcode.string() + "," + dest.string() + "," + src.string() + "]"
-    let bytes_padded = bytes + String.from_array(recover val Array[U8].init(' ', 10 - bytes.size()) end)
-    pc_str + ": " + bytes_padded + instruction + "  // " + comment
+    let padding_size = if bytes.size() < 10 then 10 - bytes.size() else 0 end
+    let bytes_padded = bytes + String.from_array(recover val Array[U8].init(' ', padding_size) end).clone()
+    pc_str + ": " + consume bytes_padded + instruction + "  // " + comment
 
   fun format_instruction(opcode: U8, dest: U8, src: U8): String =>
     match opcode

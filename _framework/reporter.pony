@@ -21,6 +21,7 @@ actor EvolutionProgressTracker is ReportSink
   let _file_save_directory: String
   var _previous_best_fitness: F64 = -1.0
   var _last_generation_logged: USize = 0
+  var _first_tick: Bool = true
   
   new create(console_env: Env, save_directory: String = "bin/") =>
     """
@@ -36,24 +37,11 @@ actor EvolutionProgressTracker is ReportSink
   be tick(current_generation: USize, best_fitness_score: F64, average_population_fitness: F64, elite_genome: Array[U8] val) =>
     """
     Called every generation to report evolution progress.
-    
-    Implements intelligent logging strategy:
-    - Always log generation 1
-    - Log every 10th generation
-    - Log when fitness improves significantly (>1% improvement)
-    - Log when near-perfect fitness is achieved
+
+    Logs every generation to the console.
     """
-    let fitness_improved_significantly = best_fitness_score > (_previous_best_fitness + 0.01)
-    let near_perfect_fitness = best_fitness_score >= 0.99999
-    let milestone_generation = (current_generation % 10) == 0
-    let first_generation = current_generation == 1
-    
-    let should_display_progress = first_generation or milestone_generation or fitness_improved_significantly or near_perfect_fitness
-    
-    if should_display_progress then
-      _display_generation_progress(current_generation, best_fitness_score, average_population_fitness)
-      _last_generation_logged = current_generation
-    end
+    _display_generation_progress(current_generation, best_fitness_score, average_population_fitness)
+    _last_generation_logged = current_generation
     
     // Always save comprehensive metrics (YAML files) for analysis
     EvolutionMetricsStorage.save_generation_data(_console_environment, _file_save_directory, 
