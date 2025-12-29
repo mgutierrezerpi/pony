@@ -10,17 +10,17 @@ primitive NeuralNetwork
   Architecture:
   - Input: 50 features
   - Hidden: 15 neurons (sigmoid activation)
-  - Output: 3 classes (positive, negative, neutral) (sigmoid activation)
+  - Output: 2 classes (positive, negative) (sigmoid activation)
 
-  Total weights: (50+1)*15 + (15+1)*3 = 765 + 48 = 813
+  Total weights: (50+1)*15 + (15+1)*2 = 765 + 32 = 797
   """
 
-  fun genome_size(): USize => 813
+  fun genome_size(): USize => 797
 
   fun forward_pass(genome: Array[U8] val, features: Array[F64] val): Array[F64] val =>
     """
     Perform forward propagation through the network.
-    Returns array of 3 outputs (one per class).
+    Returns array of 2 outputs (positive, negative).
     """
     // Convert genome bytes to weights in [-2.0, 2.0] range
     let weights = _bytes_to_weights(genome)
@@ -79,12 +79,12 @@ primitive NeuralNetwork
 
   fun _compute_output_layer(hidden: Array[F64] val, weights: Array[F64] val): Array[F64] val =>
     """
-    Compute output layer activations.
+    Compute output layer activations for 2 classes.
     """
     recover val
-      let outputs = Array[F64](3)
+      let outputs = Array[F64](2)
 
-      for o in Range[USize](0, 3) do
+      for o in Range[USize](0, 2) do
         var sum: F64 = 0.0
 
         // Add weighted hidden layer outputs (15 neurons)
@@ -141,15 +141,16 @@ primitive NeuralNetwork
   fun classify(outputs: Array[F64] val): USize =>
     """
     Convert network outputs to class prediction.
-    Returns index of highest output (0=positive, 1=negative, 2=neutral).
+    Returns index of highest output (0=positive, 1=negative).
     """
     var best_class: USize = 0
     var best_score: F64 = 0.0
 
-    for i in Range[USize](0, 3) do
+    for i in Range[USize](0, 2) do
       try
-        if outputs(i)? > best_score then
-          best_score = outputs(i)?
+        let score = outputs(i)?
+        if score > best_score then
+          best_score = score
           best_class = i
         end
       end

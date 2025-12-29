@@ -4,6 +4,7 @@
 use "random"
 use "time"
 use "files"
+use "collections"
 use "../_framework"
 use "core"
 
@@ -57,7 +58,7 @@ actor Main
     env.out.print("IMDB training data: " + imdb_data.size().string() + " movie reviews")
     env.out.print("")
     env.out.print("Starting GA training for sentiment classification...")
-    env.out.print("Neural Network: 50 -> 15 -> 3 (813 weights)")
+    env.out.print("Weighted Classifier: 50 features (50 weights)")
     env.out.print("Test cases: " + TestDataset.get_test_cases().size().string())
     env.out.print("")
 
@@ -183,14 +184,27 @@ actor Main
     end
 
   fun _analyze(env: Env, args: Array[String] val) =>
-    try
-      let text = args(2)?
+    // Concatenate all arguments after "analyze" into single text
+    var text = ""
+    for i in Range[USize](2, args.size()) do
+      try
+        if i > 2 then
+          text = text + " "
+        end
+        text = text + args(i)?
+      end
+    end
 
-      // Load genome
-      (let gen, let genome) = GenomePersistence.find_latest_generation(env, "sentiment_analysis/bin/")
+    if text.size() == 0 then
+      env.out.print("Usage: sentiment_analysis analyze \"<text to analyze>\"")
+      return
+    end
 
-      match genome
-      | let g: Array[U8] val =>
+    // Load genome
+    (let gen, let genome) = GenomePersistence.find_latest_generation(env, "sentiment_analysis/bin/")
+
+    match genome
+    | let g: Array[U8] val =>
         // Load lexicons
         let english_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/English-NRC-EmoLex.txt")
         let spanish_lex = NRCLexiconLoader.load_lexicon(env, "sentiment_analysis/data/Spanish-NRC-EmoLex.txt")
@@ -198,28 +212,33 @@ actor Main
         // Extract features
         let features = FeatureExtractor.extract(text, english_lex, spanish_lex)
 
-        // Classify
-        let outputs = NeuralNetwork.forward_pass(g, features)
-        let predicted = NeuralNetwork.classify(outputs)
+        // Classify using weighted classifier
+        let predicted = WeightedClassifier.classify(g, features)
+        (let pos_score, let neg_score) = WeightedClassifier.get_scores(g, features)
 
-        let class_names: Array[String] val = ["Positive"; "Negative"; "Neutral"]
+        let class_names: Array[String] val = ["Positive"; "Negative"]
 
         try
           let class_name = class_names(predicted)?
-          let confidence = outputs(predicted)?
+          let total_score = pos_score + neg_score
+          let confidence = if total_score > 0.0 then
+            if predicted == 0 then
+              (pos_score / total_score) * 100.0
+            else
+              (neg_score / total_score) * 100.0
+            end
+          else
+            50.0
+          end
 
           env.out.print("Text: \"" + text + "\"")
           env.out.print("Sentiment: " + class_name)
-          env.out.print("Confidence: " + (confidence * 100).string() + "%")
+          env.out.print("Confidence: " + confidence.string() + "%")
           env.out.print("")
           env.out.print("Detailed scores:")
-          env.out.print("  Positive: " + (outputs(0)? * 100).string() + "%")
-          env.out.print("  Negative: " + (outputs(1)? * 100).string() + "%")
-          env.out.print("  Neutral: " + (outputs(2)? * 100).string() + "%")
+          env.out.print("  Positive: " + pos_score.string())
+          env.out.print("  Negative: " + neg_score.string())
         end
       | None =>
         env.out.print("No trained genome found. Run 'sentiment_analysis train' first.")
       end
-    else
-      env.out.print("Usage: sentiment_analysis analyze \"<text to analyze>\"")
-    end

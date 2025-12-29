@@ -127,26 +127,41 @@ class SentimentDomainWithLexicons is ProblemDomain
     _training_data = training_data
     _test_cases = TestDataset.get_test_cases()
 
-  fun genome_size(): USize => NeuralNetwork.genome_size()
+  fun genome_size(): USize => WeightedClassifier.genome_size()
 
   fun random_genome(rng: Rand): Array[U8] val =>
-    """Generate random neural network weights."""
+    """
+    Generate feature weights with smart initialization.
+
+    Feature 0 (positive word count) gets high weight for positive contribution.
+    Feature 1 (negative word count) gets low weight (contributes to negative).
+    All other features start random and evolve naturally.
+    """
     recover val
       let genome = Array[U8](genome_size())
-      for _ in Range[USize](0, genome_size()) do
-        genome.push(rng.next().u8())
+      for i in Range[USize](0, genome_size()) do
+        let weight: U8 = if i == 0 then
+          // Feature 0 = positive_count: bias towards high (favors positive class)
+          // Range: 150-255 (average ~200, which maps to weight ~0.78)
+          150 + (rng.next().u8() % 106)
+        elseif i == 1 then
+          // Feature 1 = negative_count: bias towards low (contributes to negative class)
+          // Range: 0-105 (average ~52, which maps to weight ~0.20)
+          rng.next().u8() % 106
+        else
+          // All other features: completely random (will evolve naturally)
+          rng.next().u8()
+        end
+        genome.push(weight)
       end
       genome
     end
 
   fun evaluate(genome: Array[U8] val): F64 =>
     """
-    Evaluate fitness using:
-    - Random sample from large training data (prevents overfitting)
-    - Fixed test cases (consistent evaluation)
-
-    Note: IMDB dataset is binary (0=positive, 1=negative)
-    We map neutral predictions (class 2) to negative for IMDB compatibility
+    Evaluate fitness using weighted classifier.
+    Simple accuracy-based fitness - no diversity penalty needed!
+    The weighted voting structure naturally prevents degenerate solutions.
     """
     // Create genome-based RNG for consistent but varied sampling
     var genome_hash: USize = 0
@@ -156,9 +171,7 @@ class SentimentDomainWithLexicons is ProblemDomain
     let rng = Rand(genome_hash.u64())
 
     // Sample from training data
-    // OPTIMIZATION: Reduce sample size for faster training
-    // 50 samples = 6x faster, still good signal from 50k dataset
-    let sample_size = _training_data.size().min(50)  // Use up to 50 random samples
+    let sample_size = _training_data.size().min(200)
     var training_correct: USize = 0
 
     for _ in Range[USize](0, sample_size) do
@@ -167,25 +180,21 @@ class SentimentDomainWithLexicons is ProblemDomain
         (let text, let expected_class) = _training_data(idx)?
 
         let features = FeatureExtractor.extract(text, _english_lexicon, _spanish_lexicon)
-        let outputs = NeuralNetwork.forward_pass(genome, features)
-        let predicted = NeuralNetwork.classify(outputs)
+        let predicted = WeightedClassifier.classify(genome, features)
 
-        // For binary classification: treat neutral (2) as negative (1)
-        let predicted_binary = if predicted == 2 then 1 else predicted end
-
-        if predicted_binary == expected_class then
+        if predicted == expected_class then
           training_correct = training_correct + 1
         end
       end
     end
 
-    // Only use training accuracy (IMDB is much larger and more important)
+    // Return simple accuracy - let evolution figure out the best weights!
     training_correct.f64() / sample_size.f64()
 
   fun perfect_fitness(): F64 => 0.95
 
   fun display_result(genome: Array[U8] val): String =>
-    """Show example predictions."""
+    """Show example predictions using weighted classifier."""
     let examples = [
       "I love this wonderful movie"
       "This is terrible and awful"
@@ -195,23 +204,31 @@ class SentimentDomainWithLexicons is ProblemDomain
       "La mesa es marrón"
     ]
 
-    let class_names: Array[String] val = ["Positive"; "Negative"; "Neutral"]
+    let class_names: Array[String] val = ["Positive"; "Negative"]
 
     var result = "Sentiment predictions:\n"
     result = result + "Training data size: " + _training_data.size().string() + " samples\n\n"
 
     for text in examples.values() do
       let features = FeatureExtractor.extract(text, _english_lexicon, _spanish_lexicon)
-      let outputs = NeuralNetwork.forward_pass(genome, features)
-      let predicted = NeuralNetwork.classify(outputs)
+      let predicted = WeightedClassifier.classify(genome, features)
+      (let pos_score, let neg_score) = WeightedClassifier.get_scores(genome, features)
 
       try
         let class_name = class_names(predicted)?
-        var confidence: F64 = 0.0
-        try confidence = outputs(predicted)? end
+        let total_score = pos_score + neg_score
+        let confidence = if total_score > 0.0 then
+          if predicted == 0 then
+            (pos_score / total_score) * 100.0
+          else
+            (neg_score / total_score) * 100.0
+          end
+        else
+          50.0
+        end
 
         result = result + "\"" + text + "\" -> " + class_name
-        result = result + " (" + (confidence * 100).string() + "%)\n"
+        result = result + " (" + confidence.string() + "%)\n"
       end
     end
 

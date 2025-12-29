@@ -36,6 +36,7 @@ actor GenericGAController[T: ProblemDomain val, O: GenomeOperations val, C: GACo
   let _domain: T                   // Problem-specific domain (fitness evaluation, genome creation)
   let _ops: O                      // Genetic operations (mutation, crossover, heavy mutation)
   let _config: C                   // Evolution parameters (population size, selection pressure)
+  let _workers: Array[FitnessWorker[T]] val  // Parallel fitness evaluation workers
   
   // Population state
   var _pop: Array[Array[U8] val] ref = _pop.create()  // Current population of genomes
@@ -70,6 +71,16 @@ actor GenericGAController[T: ProblemDomain val, O: GenomeOperations val, C: GACo
     _reporter = reporter
     _gen = start_gen  // Initialize with starting generation (0 for new runs)
     _max_gens = 0 // No generation limit - evolve until perfect solution found
+
+    // Create parallel fitness workers
+    _workers = recover val
+      let workers = Array[FitnessWorker[T]]
+      for _ in Range[USize](0, _config.worker_count()) do
+        workers.push(FitnessWorker[T](domain, this))
+      end
+      workers
+    end
+
     _init_pop()   // Create initial random population
     _eval_pop()   // Start fitness evaluation process
   
@@ -92,6 +103,16 @@ actor GenericGAController[T: ProblemDomain val, O: GenomeOperations val, C: GACo
     _reporter = reporter
     _gen = start_gen  // Initialize with starting generation (0 for new runs)
     _max_gens = max_gens  // Stop after this many generations
+
+    // Create parallel fitness workers
+    _workers = recover val
+      let workers = Array[FitnessWorker[T]]
+      for _ in Range[USize](0, _config.worker_count()) do
+        workers.push(FitnessWorker[T](domain, this))
+      end
+      workers
+    end
+
     _init_pop()
     _eval_pop()
 
@@ -130,17 +151,16 @@ actor GenericGAController[T: ProblemDomain val, O: GenomeOperations val, C: GACo
   
   fun _eval_genome(id: USize, genome: Array[U8] val) =>
     """
-    Evaluates a single genome's fitness.
-    
-    In a parallel implementation, this would dispatch to worker actors.
-    For now, it evaluates synchronously and sends the result back to got_fit().
-    
-    The domain's evaluate() method tests how well the genome's nucleos
-    work together to solve the problem (e.g., compute powers of 2).
+    Dispatches a genome to a worker actor for parallel fitness evaluation.
+
+    Workers are selected in round-robin fashion to distribute load evenly.
+    Results come back asynchronously via got_fit().
     """
-    // In real implementation, this would dispatch to parallel worker actors
-    let fitness = _domain.evaluate(genome)  // Run genome against test cases
-    got_fit(id, fitness)                    // Send result back asynchronously
+    try
+      // Round-robin worker selection for load balancing
+      let worker_idx = id % _workers.size()
+      _workers(worker_idx)?.evaluate(id, genome)
+    end
 
   be got_fit(id: USize, fitness: F64) =>
     """
