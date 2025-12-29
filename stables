@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Pony project management script
+# Stables project management script
 
 show_usage() {
     cat << 'EOF'
-Usage: ./pony <command> <project_name> [args...]
+Usage: ./stables <command> <project_name> [args...]
 
 Commands:
   help                    - Show this help message
@@ -19,25 +19,25 @@ Available Projects (in apps/):
   web_server              - REST API server for trained models
 
 Examples:
-  ./pony help
-  ./pony compile powers_of_two
-  ./pony compile sentiment_analysis
-  ./pony compile web_server
+  ./stables help
+  ./stables compile powers_of_two
+  ./stables compile sentiment_analysis
+  ./stables compile web_server
 
-  ./pony run powers_of_two train
-  ./pony run powers_of_two 5
-  ./pony run powers_of_two resume 100
-  ./pony run powers_of_two disassemble
+  ./stables run powers_of_two train
+  ./stables run powers_of_two 5
+  ./stables run powers_of_two resume 100
+  ./stables run powers_of_two disassemble
 
-  ./pony run sentiment_analysis train
-  ./pony run sentiment_analysis analyze "I love this movie"
-  ./pony run sentiment_analysis test
+  ./stables run sentiment_analysis train
+  ./stables run sentiment_analysis analyze "I love this movie"
+  ./stables run sentiment_analysis test
 
-  ./pony run web_server
-  HOST=0.0.0.0 PORT=3000 ./pony run web_server
+  ./stables run web_server
+  HOST=0.0.0.0 PORT=3000 ./stables run web_server
 
-  ./pony test powers_of_two
-  ./pony disassemble powers_of_two
+  ./stables test powers_of_two
+  ./stables disassemble powers_of_two
 EOF
 }
 

@@ -4,20 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build and Run Commands
 
-Always use the `./pony` script for all compilation and execution:
+Always use the `./stables` script for all compilation and execution:
 
 ```bash
 # Compile a project
-./pony compile <project_name>
+./stables compile <project_name>
 
 # Run a compiled project
-./pony run <project_name> [args...]
+./stables run <project_name> [args...]
 
 # Run tests
-./pony test <project_name>
+./stables test <project_name>
 
 # Show help
-./pony help
+./stables help
 ```
 
 **NEVER use `ponyc` directly** - the script handles proper output paths and binary naming.
@@ -26,7 +26,7 @@ Always use the `./pony` script for all compilation and execution:
 
 For projects with test files (e.g., `test_vm.pony`):
 ```bash
-./pony test fibonacci
+./stables test fibonacci
 ```
 
 This compiles and runs the test suite, which includes unit tests and validation with trained genomes.
@@ -68,14 +68,14 @@ This cycle continues until target fitness is achieved or generation limit is rea
 The repository follows a monorepo-style structure:
 
 ```
-pony/
+stables/
 ├── packages/              # Reusable framework code
 │   └── _framework/        # Core GA framework
 ├── apps/                  # Applications
 │   ├── powers_of_two/     # Powers of 2 evolution
 │   ├── sentiment_analysis/# Sentiment classifier
 │   └── web_server/        # REST API for models
-├── pony                   # Build script
+├── stables                # Build script
 ├── README.md
 └── CLAUDE.md
 ```
@@ -149,7 +149,7 @@ The framework saves genomes and metrics:
 
 To resume training from saved state:
 ```bash
-./pony run <project> resume [generations]
+./stables run <project> resume [generations]
 ```
 
 ## Common Development Tasks
@@ -172,7 +172,7 @@ To resume training from saved state:
 
 3. Implement domain traits in `core/` directory
 
-4. Projects are automatically discovered by `./pony` script in `apps/` folder
+4. Projects are automatically discovered by `./stables` script in `apps/` folder
 
 ### Modifying GA Parameters
 

@@ -1,18 +1,18 @@
-# Pony Genetic Algorithm Framework
+# Stables Genetic Algorithm Framework
 
 A monorepo-style repository containing a reusable genetic algorithm framework and example applications, all written in the [Pony programming language](https://www.ponylang.io/).
 
 ## Repository Structure
 
 ```
-pony/
+stables/
 ├── packages/              # Reusable framework code
 │   └── _framework/        # Core GA framework
 ├── apps/                  # Applications
 │   ├── powers_of_two/     # Evolve VM programs to compute powers of 2
 │   ├── sentiment_analysis/# Sentiment classification using evolved weights
 │   └── web_server/        # REST API for trained models
-├── pony                   # Build/run script
+├── stables                # Build/run script
 ├── README.md
 └── CLAUDE.md             # Detailed documentation for AI assistants
 ```
@@ -28,42 +28,42 @@ brew install ponyc
 ### 2. Make Build Script Executable
 
 ```bash
-chmod +x pony
+chmod +x stables
 ```
 
 ### 3. Try an Example
 
 ```bash
 # Train a model to compute powers of 2
-./pony compile powers_of_two
-./pony run powers_of_two train
+./stables compile powers_of_two
+./stables run powers_of_two train
 
 # Test the trained model
-./pony run powers_of_two 5
+./stables run powers_of_two 5
 # Output: 2^5 = 32 ✓ Correct!
 
 # Analyze sentiment of text
-./pony compile sentiment_analysis
-./pony run sentiment_analysis analyze "I love this movie"
+./stables compile sentiment_analysis
+./stables run sentiment_analysis analyze "I love this movie"
 # Output: Sentiment: Positive, Confidence: 56.4%
 ```
 
 ## Usage
 
-Use the `./pony` script for all operations:
+Use the `./stables` script for all operations:
 
 ```bash
 # Compile a project
-./pony compile <project_name>
+./stables compile <project_name>
 
 # Run a project
-./pony run <project_name> [args...]
+./stables run <project_name> [args...]
 
 # Run tests
-./pony test <project_name>
+./stables test <project_name>
 
 # Show help
-./pony help
+./stables help
 ```
 
 ## Applications
@@ -80,11 +80,11 @@ Evolves VM programs to compute powers of 2 using genetic algorithms.
 
 **Commands:**
 ```bash
-./pony run powers_of_two train              # Train from scratch
-./pony run powers_of_two 5                  # Compute 2^5
-./pony run powers_of_two resume 100         # Resume training for 100 more generations
-./pony run powers_of_two disassemble        # Show VM instructions
-./pony run powers_of_two clear              # Clear saved models
+./stables run powers_of_two train              # Train from scratch
+./stables run powers_of_two 5                  # Compute 2^5
+./stables run powers_of_two resume 100         # Resume training for 100 more generations
+./stables run powers_of_two disassemble        # Show VM instructions
+./stables run powers_of_two clear              # Clear saved models
 ```
 
 **Example Output:**
@@ -107,10 +107,10 @@ Multilingual sentiment classification using evolved feature weights.
 
 **Commands:**
 ```bash
-./pony run sentiment_analysis train                    # Train from scratch
-./pony run sentiment_analysis analyze "I love this"    # Analyze sentiment
-./pony run sentiment_analysis test                     # Test with examples
-./pony run sentiment_analysis clear                    # Clear saved models
+./stables run sentiment_analysis train                    # Train from scratch
+./stables run sentiment_analysis analyze "I love this"    # Analyze sentiment
+./stables run sentiment_analysis test                     # Test with examples
+./stables run sentiment_analysis clear                    # Clear saved models
 ```
 
 **Example Output:**
@@ -135,8 +135,8 @@ REST API server for trained sentiment analysis models.
 
 **Commands:**
 ```bash
-./pony run web_server                           # Run on localhost:8080
-HOST=0.0.0.0 PORT=3000 ./pony run web_server  # Custom host/port
+./stables run web_server                           # Run on localhost:8080
+HOST=0.0.0.0 PORT=3000 ./stables run web_server  # Custom host/port
 ```
 
 **Environment Variables:**
@@ -169,7 +169,7 @@ Response: {
 **Example Usage:**
 ```bash
 # Start server
-./pony run web_server
+./stables run web_server
 
 # Test API
 curl -X POST http://127.0.0.1:8080/sentiment_analysis \
