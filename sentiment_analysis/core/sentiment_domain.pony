@@ -4,6 +4,7 @@
 use "random"
 use "collections"
 use "../../_framework"
+use "../../_framework/operators/mutations"
 
 class SentimentDomainWithLexicons is ProblemDomain
   """
@@ -137,57 +138,32 @@ class SentimentDomainWithLexicons is ProblemDomain
 primitive SentimentGenomeOperations is GenomeOperations
   """
   Genetic operations for weighted classifier genomes.
+  Uses reusable StandardMutations operators from the framework.
   """
 
   fun mutate(rng: Rand, genome: Array[U8] val): Array[U8] val =>
     """
-    Light mutation: modify 1-5% of weights with small changes.
+    Light mutation: Gaussian noise with small adjustments.
+    Uses generic Gaussian mutation operator - much cleaner than custom code!
     """
-    recover val
-      let mutated = Array[U8](genome.size())
-      for byte in genome.values() do
-        mutated.push(byte)
-      end
-
-      // Mutate 1-5% of weights
-      let mutation_count = 1 + (rng.next().usize() % (genome.size() / 20))
-
-      for _ in Range[USize](0, mutation_count) do
-        try
-          let pos = rng.next().usize() % mutated.size()
-          let current = mutated(pos)?
-          // Small change: +/- up to 20
-          let delta = (rng.next().i32() % 41) - 20
-          let new_val = (current.i32() + delta).max(0).min(255)
-          mutated(pos)? = new_val.u8()
-        end
-      end
-
-      mutated
-    end
+    StandardMutations.gaussian_mutate(rng, genome, 0.1, 10.0)
 
   fun heavy_mutate(rng: Rand, genome: Array[U8] val): Array[U8] val =>
     """
-    Heavy mutation: randomize 10-30% of weights completely.
+    Heavy mutation: Combine byte mutation and scrambling for strong exploration.
+    Demonstrates composing multiple mutation operators.
     """
-    recover val
-      let mutated = Array[U8](genome.size())
-      for byte in genome.values() do
-        mutated.push(byte)
-      end
+    var result = genome
 
-      // Mutate 10-30% of weights
-      let mutation_count = (genome.size() / 10) + (rng.next().usize() % (genome.size() / 5))
+    // First: byte mutation for random changes
+    result = StandardMutations.byte_mutate(rng, result, 0.2)
 
-      for _ in Range[USize](0, mutation_count) do
-        try
-          let pos = rng.next().usize() % mutated.size()
-          mutated(pos)? = rng.next().u8()  // Completely random
-        end
-      end
-
-      mutated
+    // Second: occasionally scramble a segment to break patterns
+    if (rng.next() % 3) == 0 then
+      result = StandardMutations.scramble_mutate(rng, result)
     end
+
+    result
 
   fun crossover(rng: Rand, a: Array[U8] val, b: Array[U8] val): (Array[U8] val, Array[U8] val) =>
     """
